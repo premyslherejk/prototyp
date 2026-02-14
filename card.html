@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <title>Detail karty</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- ✅ sdílený vzhled karet pro slider -->
+  <link rel="stylesheet" href="css/offervis.css">
+  <link rel="stylesheet" href="css/cardvis.css">
+  <link rel="stylesheet" href="css/headervis.css">
+  <link rel="stylesheet" href="css/footervis.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
+</head>
+
+<body>
+
+<header class="site-header">
+  <div class="logo" onclick="location.href='index.html'">PokeKusovky</div>
+
+  <div class="header-right">
+    <div class="cart-icon" onclick="location.href='cart.html'">
+      🛒 <span class="cart-count" id="cart-count">0</span>
+    </div>
+    <button id="menu-button" class="menu-button" aria-label="Menu">☰</button>
+  </div>
+</header>
+
+<nav class="menu-overlay" id="menu">
+  <a href="index.html">Domů</a>
+  <a href="cards.html">Karty</a>
+  <a href="auctions.html">Aukce</a>
+  <a href="contact.html">Kontakt</a>
+</nav>
+
+<div class="product-page">
+
+  <!-- GALERIE -->
+  <div class="gallery">
+    <div class="main-image" id="mainImage">
+      <img id="current" src="" alt="">
+    </div>
+    <div class="thumbs" id="thumbs"></div>
+  </div>
+
+  <!-- INFO -->
+  <div class="info">
+    <span class="status-pill" id="status"></span>
+
+    <h1 id="name"></h1>
+
+    <!-- ✅ PSA BADGE (už máš) -->
+    <div class="psa" id="psa"></div>
+
+    <!-- ✅ CONDITION BADGE (jen pro RAW) -->
+    <div class="condition" id="conditionBadge"></div>
+
+    <div class="meta" id="meta"></div>
+
+    <p class="description" id="description"></p>
+
+    <div class="buy-box">
+      <div class="price" id="price"></div>
+
+      <div id="min-order-info" class="min-order-info" style="display:none;">
+        * Minimální objednávka je 99 Kč
+      </div>
+
+      <button class="add">Přidat do košíku</button>
+    </div>
+  </div>
+</div>
+
+<!-- ✅ PSA INFO -->
+<div id="psa-info" class="psa-info">
+  <h3>Co znamená PSA hodnocení?</h3>
+  <p>
+    PSA (Professional Sports Authenticator) je nejuznávanější autorita na světě
+    pro hodnocení sběratelských karet. Karty jsou hodnoceny na stupnici 1–10
+    podle stavu, centrování, rohů a povrchu.
+  </p>
+  <p>
+    <strong>PSA 9</strong> znamená téměř perfektní stav – ideální pro sběratele i investory.
+  </p>
+</div>
+
+<!-- ✅ CONDITION INFO (jen pro RAW) -->
+<div id="condition-info" class="condition-info" style="display:none;">
+  <h3>Co znamená stav karty?</h3>
+  <p>Totálně jednoduše: jde o to, jak moc je karta „jetá“.</p>
+
+  <div class="condition-list">
+    <div class="condition-row">
+      <span class="cond-pill cond-ex">EX</span>
+      <div>
+        <strong>Excellent</strong> – vypadá skoro jako nová, jen maličký náznak používání.
+      </div>
+    </div>
+
+    <div class="condition-row">
+      <span class="cond-pill cond-nm">NM</span>
+      <div>
+        <strong>Near Mint</strong> – top stav, minimální vady (většinou skoro neviditelné).
+      </div>
+    </div>
+
+    <div class="condition-row">
+      <span class="cond-pill cond-gd">GD</span>
+      <div>
+        <strong>Good</strong> – už je vidět hraní / nošení, ale pořád ok do sbírky.
+      </div>
+    </div>
+
+    <div class="condition-row">
+      <span class="cond-pill cond-pl">PL</span>
+      <div>
+        <strong>Played</strong> – výrazně hraná karta, viditelné oděrky, rohy, hrany.
+      </div>
+    </div>
+
+    <div class="condition-row">
+      <span class="cond-pill cond-po">PO</span>
+      <div>
+        <strong>Poor</strong> – hodně špatný stav (silné poškození), spíš „budget“.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ✅ MOHLO BY SE VÁM LÍBIT (slider) -->
+<section class="related" id="relatedSection" style="display:none;">
+  <div class="related-head">
+    <h2>Mohlo by se Vám líbit:</h2>
+
+    <div class="related-controls">
+      <button type="button" class="rel-btn" id="relPrev" aria-label="Předchozí">‹</button>
+      <button type="button" class="rel-btn" id="relNext" aria-label="Další">›</button>
+    </div>
+  </div>
+
+  <div class="related-track" id="relatedTrack"></div>
+</section>
+
+<!-- LIGHTBOX -->
+<div class="lightbox" id="lightbox">
+  <div class="arrow left" id="prev">‹</div>
+  <img id="lightImg">
+  <div class="arrow right" id="next">›</div>
+  <div class="close" id="close">✕</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<!-- ✅ OfferUI musí být před cardfun.js -->
+<script src="js/offerfun.js"></script>
+<script src="js/cardfun.js"></script>
+<script src="js/headerfun.js"></script>
+<script src="js/footerfun.js"></script>
+
+</body>
+</html>

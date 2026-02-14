@@ -1,0 +1,363 @@
+/* ===================== RESET ===================== */
+*{ box-sizing:border-box; margin:0; padding:0; }
+
+body{
+  background:#0f0f14;
+  color:#fff;
+  font-family:Inter,system-ui,sans-serif;
+}
+
+.hidden{ display:none !important; }
+
+/* ===================== PAGE ===================== */
+.buy-page{
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 40px 18px;
+}
+
+.buy-header{
+  margin-bottom: 16px;
+}
+
+.buy-header h1{
+  font-size: 2.1rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.sub{
+  margin-top: 10px;
+  opacity: .75;
+  font-size: .95rem;
+  line-height: 1.45;
+  color: rgba(255,255,255,.78);
+}
+
+/* ===================== CARD ===================== */
+.card{
+  background:#15151d;
+  border:1px solid #2a2a33;
+  border-radius:20px;
+  padding: 18px;
+  margin-top: 14px;
+}
+
+.card h2{
+  font-size: 1.15rem;
+  font-weight: 900;
+  color:#ff3b3b;
+  margin-bottom: 12px;
+}
+
+.muted{ opacity:.75; color: rgba(255,255,255,.75); }
+.small{ font-size:.9rem; line-height:1.45; color: rgba(255,255,255,.72); }
+
+.sep{
+  height: 1px;
+  background: #2a2a33;
+  margin: 12px 0;
+}
+
+/* ===================== FORM ===================== */
+.form{
+  display:grid;
+  gap: 12px;
+}
+
+label{
+  display:grid;
+  gap: 6px;
+  font-size: .88rem;
+  color: rgba(255,255,255,.82);
+}
+
+input, textarea, select{
+  padding: 12px 12px;
+  border-radius: 14px;
+  border: 1px solid #2a2a33;
+  background: #0f0f14;
+  color: #fff;
+  outline: none;
+}
+
+input::placeholder,
+textarea::placeholder{
+  color: rgba(255,255,255,.45);
+}
+
+textarea{ resize: vertical; min-height: 92px; line-height: 1.5; }
+
+.grid-2{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+/* ===================== BUTTONS ===================== */
+.btn-primary{
+  width: min(420px, 100%);
+  margin: 16px auto 0;
+  display:block;
+  padding: 16px 22px;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(135deg,#ff3b3b,#c40000);
+  color: #fff;
+  font-weight: 900;
+  cursor: pointer;
+  transition: .15s;
+  font-size: 1.05rem;
+  text-align: center;
+}
+
+.btn-primary:hover{ transform: translateY(-1px); }
+.btn-primary:disabled{ opacity:.6; cursor:not-allowed; transform:none; }
+
+.btn-ghost{
+  padding: 10px 12px;
+  border-radius: 999px;
+  border: 1px solid #2a2a33;
+  background: #0f0f14;
+  color: #fff;
+  font-weight: 900;
+  cursor:pointer;
+  transition: .15s;
+}
+.btn-ghost:hover{
+  border-color: rgba(255,59,59,.45);
+  box-shadow: 0 0 0 2px rgba(255,59,59,.10);
+  transform: translateY(-1px);
+}
+
+.msg{
+  margin-top: 10px;
+  font-size: .95rem;
+  opacity: .92;
+  text-align:center;
+}
+.msg.ok{ color: #7dffb2; }
+.msg.err{ color: #ff6b6b; }
+
+/* ===================== TYPE PICKER (Kusové/Bulk) ===================== */
+.type-grid{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.type-card{
+  text-align:left;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid #2a2a33;
+  background:#0f0f14;
+  cursor:pointer;
+  transition:.15s;
+  min-height: 78px;
+  display:flex;
+  flex-direction: column;
+  justify-content:center;
+  gap: 4px;
+}
+
+.type-card .title{
+  font-weight: 900;
+  font-size: 1.05rem;
+  color:#fff;
+}
+
+.type-card .desc{
+  margin-top: 4px;
+  opacity: 1;
+  color: rgba(255,255,255,.72);
+  font-size: .9rem;
+  line-height:1.35;
+}
+
+.type-card:hover{
+  border-color: rgba(255,59,59,.45);
+  box-shadow: 0 0 0 2px rgba(255,59,59,.10);
+  transform: translateY(-1px);
+}
+
+/* active */
+.type-card.active{
+  border-color: rgba(168,85,247,.85);
+  box-shadow: 0 0 0 2px rgba(168,85,247,.18);
+  background: linear-gradient(135deg, rgba(168,85,247,.16), rgba(124,58,237,.10));
+}
+
+/* ===================== HOW BOX ===================== */
+.how{
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid #2a2a33;
+  background:#0f0f14;
+  line-height:1.55;
+  color: rgba(255,255,255,.78);
+}
+
+/* ===================== ITEMS / ROWS ===================== */
+.row-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.hint{
+  opacity:.8;
+  font-size:.9rem;
+  line-height:1.45;
+  color: rgba(255,255,255,.75);
+}
+
+.items{
+  display:grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.item-row{
+  border: 1px solid #2a2a33;
+  background:#0f0f14;
+  border-radius: 18px;
+  padding: 12px;
+  display:grid;
+  gap: 10px;
+}
+
+.item-top{
+  display:grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items:center;
+}
+
+.item-title{
+  font-weight:900;
+  color:#fff;
+  font-size:.98rem;
+}
+
+.item-actions{
+  display:flex;
+  gap: 8px;
+}
+
+.btn-mini{
+  padding: 8px 10px;
+  border-radius: 999px;
+  border: 1px solid #2a2a33;
+  background:#15151d;
+  color:#fff;
+  font-weight:900;
+  cursor:pointer;
+  transition: .15s;
+}
+.btn-mini:hover{
+  border-color: rgba(255,59,59,.45);
+  box-shadow: 0 0 0 2px rgba(255,59,59,.10);
+  transform: translateY(-1px);
+}
+.btn-mini.danger{
+  border-color: rgba(255,107,107,.55);
+}
+
+.item-grid{
+  display:grid;
+  grid-template-columns: 1.1fr .9fr .9fr;
+  gap: 10px;
+}
+
+/* ===================== FILE INPUT (modern) ===================== */
+input[type="file"]{
+  width: 100%;
+  padding: 10px;
+  border-radius: 14px;
+  border: 1px solid #2a2a33;
+  background: #0f0f14;
+  color: rgba(255,255,255,.78);
+}
+
+input[type="file"]::file-selector-button{
+  margin-right: 10px;
+  padding: 10px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(168,85,247,.70);
+  background: linear-gradient(135deg, rgba(168,85,247,.22), rgba(124,58,237,.14));
+  color: #fff;
+  font-weight: 900;
+  cursor: pointer;
+  transition: .15s;
+}
+input[type="file"]::file-selector-button:hover{
+  box-shadow: 0 0 0 2px rgba(168,85,247,.18);
+  transform: translateY(-1px);
+}
+
+/* ===================== ADD CARD BUTTON (STEJNÝ STYL JAK FILE UPLOAD) ===================== */
+/* v HTML máš id="addRowBtn" */
+#addRowBtn{
+  padding: 10px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(168,85,247,.70);
+  background: linear-gradient(135deg, rgba(168,85,247,.22), rgba(124,58,237,.14));
+  color: #fff;
+  font-weight: 900;
+  cursor: pointer;
+  transition: .15s;
+}
+#addRowBtn:hover{
+  box-shadow: 0 0 0 2px rgba(168,85,247,.18);
+  transform: translateY(-1px);
+}
+
+/* ===================== CONSENT TEXT (na střed) ===================== */
+/* tvoje poslední věta je <p class="muted small" style="margin-top:10px;">... */
+#buyForm > p.muted.small{
+  text-align: center;
+  margin-top: 12px !important;
+  color: rgba(255,255,255,.58);
+}
+
+/* ===================== BULK SPACING (FIX) ===================== */
+/* TADY je hlavní oprava: bulk wrapper je #bulkBlock, ne #bulkForm */
+#bulkBlock label{
+  margin-top: 14px;
+}
+
+/* Počet karet a fotky jsou uvnitř .grid-2 -> přidej prostor shora jen těm labelům */
+#bulkBlock .grid-2{
+  margin-top: 12px;   /* tohle oddělí grid od textarey nahoře */
+}
+
+/* A pokud chceš extra konkrétně: první label v gridu (Počet karet) */
+#bulkBlock .grid-2 > label:first-child{
+  margin-top: 10px;   /* aby to nebylo nalepený ani uvnitř gridu */
+}
+
+/* malá poznámka pod gridem */
+#bulkBlock p.muted.small{
+  margin-top: 10px;
+}
+
+/* ===================== MOBILE ===================== */
+@media (max-width: 900px){
+  .buy-page{ padding: 28px 14px; }
+  .buy-header h1{ font-size: 1.75rem; }
+  .type-grid{ grid-template-columns: 1fr; }
+  .grid-2{ grid-template-columns: 1fr; }
+  .item-grid{ grid-template-columns: 1fr; }
+  .row-head{ flex-direction: column; align-items: stretch; }
+  .btn-primary{ max-width: 520px; }
+
+  /* na mobilu ještě víc dýchat v bulku */
+  #bulkBlock .grid-2{
+    margin-top: 14px;
+  }
+}

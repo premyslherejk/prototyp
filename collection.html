@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <title>Karty | PokeKusovky</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <link rel="stylesheet" href="css/collectionvis.css">
+  <link rel="stylesheet" href="css/offervis.css">
+  <link rel="stylesheet" href="css/headervis.css">
+  <link rel="stylesheet" href="css/footervis.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
+
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="logo" onclick="location.href='index.html'">PokeKusovky</div>
+
+  <div class="header-right">
+    <div class="cart-icon" onclick="location.href='cart.html'">
+      🛒 <span class="cart-count" id="cart-count">0</span>
+    </div>
+    <button id="menu-button" class="menu-button">☰</button>
+  </div>
+</header>
+
+<nav class="menu-overlay" id="menu">
+  <a href="index.html">Domů</a>
+  <a href="cards.html">Karty</a>
+  <a href="auctions.html">Aukce</a>
+  <a href="contact.html">Kontakt</a>
+</nav>
+
+<div class="collection-page">
+
+  <!-- TOP: CTA karty pro rychlé filtry -->
+  <section class="top-picks">
+    <div class="pick-group" id="langSwitch">
+
+      <!-- ✅ EN (Union Jack) -->
+      <button type="button" class="pick-card" data-lang="EN">
+        <div class="pick-icon">
+          <svg class="flag-svg" viewBox="0 0 60 30" aria-label="EN" role="img">
+            <defs>
+              <clipPath id="uk-clip">
+                <rect width="60" height="30" rx="0" ry="0"></rect>
+              </clipPath>
+            </defs>
+            <g clip-path="url(#uk-clip)">
+              <rect width="60" height="30" fill="#012169"></rect>
+
+              <path d="M0,0 L60,30 M60,0 L0,30" stroke="#FFFFFF" stroke-width="6"></path>
+              <path d="M0,0 L60,30" stroke="#C8102E" stroke-width="4" transform="translate(1.5,0)"></path>
+              <path d="M60,0 L0,30" stroke="#C8102E" stroke-width="4" transform="translate(-1.5,0)"></path>
+
+              <rect x="0" y="12" width="60" height="6" fill="#FFFFFF"></rect>
+              <rect x="27" y="0" width="6" height="30" fill="#FFFFFF"></rect>
+
+              <rect x="0" y="13" width="60" height="4" fill="#C8102E"></rect>
+              <rect x="28" y="0" width="4" height="30" fill="#C8102E"></rect>
+            </g>
+          </svg>
+        </div>
+        <div class="pick-text">
+          <div class="pick-title">EN</div>
+          <div class="pick-sub">Anglické karty</div>
+        </div>
+      </button>
+
+      <!-- ✅ JP -->
+      <button type="button" class="pick-card" data-lang="JP">
+        <div class="pick-icon">
+          <svg class="flag-svg" viewBox="0 0 60 30" aria-label="JP" role="img">
+            <rect width="60" height="30" fill="#FFF"/>
+            <circle cx="30" cy="15" r="9" fill="#BC002D"/>
+          </svg>
+        </div>
+        <div class="pick-text">
+          <div class="pick-title">JP</div>
+          <div class="pick-sub">Japonské karty</div>
+        </div>
+      </button>
+
+    </div>
+
+    <div class="pick-group" id="quickFilters">
+      <button type="button" class="pick-card pick-alt" data-section="graded">
+        <div class="pick-icon">🟣</div>
+        <div class="pick-text">
+          <div class="pick-title">Hodnocené</div>
+          <div class="pick-sub">PSA karty</div>
+        </div>
+      </button>
+
+      <button type="button" class="pick-card pick-alt" data-section="hot">
+        <div class="pick-icon">🔥</div>
+        <div class="pick-text">
+          <div class="pick-title">Žhavé</div>
+          <div class="pick-sub">top nabídky</div>
+        </div>
+      </button>
+    </div>
+  </section>
+
+  <!-- SEARCH + FILTER BUTTON -->
+  <div class="collection-top">
+    <input
+      type="text"
+      id="search"
+      placeholder="Hledat kartu…"
+      class="search-input"
+      autocomplete="off"
+    />
+
+    <button id="toggleFilters" class="filter-toggle" type="button">
+      ☰ Filtry
+    </button>
+  </div>
+
+  <!-- ACTIVE FILTER CHIPS -->
+  <div class="active-filters hidden" id="activeFilters">
+    <div class="chips" id="filterChips"></div>
+    <button type="button" class="clear-all" id="clearAllFilters">Vymazat vše</button>
+  </div>
+
+  <!-- LAYOUT -->
+  <div class="collection-layout" id="collectionLayout">
+
+    <!-- FILTER SIDEBAR -->
+    <aside class="filters hidden" id="filtersPanel">
+      <div class="filters-head">
+        <h3>Filtry</h3>
+        <button class="filters-close" id="closeFilters" type="button" aria-label="Zavřít filtry">✕</button>
+      </div>
+
+      <label>
+        Série
+        <select id="serie">
+          <option value="">Vše</option>
+        </select>
+      </label>
+
+      <label>
+        Edice
+        <select id="set">
+          <option value="">Nejdřív vyber sérii</option>
+        </select>
+      </label>
+
+      <label>
+        Stav
+        <select id="condition">
+          <option value="">Vše</option>
+          <option value="Excellent">Excellent</option>
+          <option value="Near Mint">Near Mint</option>
+          <option value="Good">Good</option>
+          <option value="Played">Played</option>
+          <option value="Poor">Poor</option>
+        </select>
+      </label>
+
+      <div class="price-row">
+        <label>
+          Cena od
+          <input type="number" id="priceMin" placeholder="0" min="0">
+        </label>
+
+        <label>
+          Cena do
+          <input type="number" id="priceMax" placeholder="9999" min="0">
+        </label>
+      </div>
+
+      <label>
+        Řazení
+        <select id="sort">
+          <option value="new">Nejnovější</option>
+          <option value="price_asc">Cena ↑</option>
+          <option value="price_desc">Cena ↓</option>
+          <option value="name">Abecedně</option>
+        </select>
+      </label>
+
+      <button id="applyFilters" class="apply-filters" type="button">
+        Použít filtry
+      </button>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="collection-main">
+      <section class="cards-grid" id="cards"></section>
+
+      <!-- ✅ LOAD MORE -->
+      <div class="load-more-wrap" id="loadMoreWrap">
+        <button type="button" class="load-more-btn" id="loadMoreBtn">Zobrazit více</button>
+        <div class="load-more-info" id="loadMoreInfo">0/0</div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script src="js/offerfun.js"></script>
+<script src="js/collectionfun.js"></script>
+<script src="js/headerfun.js"></script>
+<script src="js/footerfun.js"></script>
+</body>
+</html>

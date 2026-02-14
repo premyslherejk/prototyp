@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin | PokeKusovky</title>
+
+  <link rel="stylesheet" href="css/headervis.css" />
+  <link rel="stylesheet" href="css/footervis.css" />
+  <link rel="stylesheet" href="css/adminvis.css" />
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+
+  <!-- ZIP pro "Stáhnout vše" -->
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+</head>
+
+<body>
+  <header class="site-header">
+    <div class="logo" onclick="location.href='index.html'">PokeKusovky</div>
+  </header>
+
+  <main class="admin-page">
+    <header class="admin-header">
+      <h1>Admin</h1>
+      <p class="sub">Přihlášení přes Supabase Auth. Bez admin práv uvidíš „Access denied“.</p>
+    </header>
+
+    <!-- LOGIN VIEW -->
+    <section class="card" id="loginView">
+      <h2>Přihlášení</h2>
+
+      <form id="loginForm" class="form" novalidate>
+        <label>
+          E-mail
+          <input id="loginEmail" type="email" autocomplete="email" required />
+        </label>
+
+        <label>
+          Heslo
+          <input id="loginPassword" type="password" autocomplete="current-password" required />
+        </label>
+
+        <button class="btn-primary" id="loginBtn" type="submit">Přihlásit</button>
+        <p class="msg" id="loginMsg" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <!-- DASHBOARD VIEW -->
+    <section class="card hidden" id="dashView">
+      <div class="dash-top">
+        <div>
+          <h2>Dashboard</h2>
+          <div class="meta">
+            Přihlášen: <span id="whoami">—</span>
+            <span class="dot">•</span>
+            Objednávky: <span id="countAll">0</span>
+            <span class="dot">•</span>
+            Výkup: <span id="countBuy">0</span>
+            <span class="dot">•</span>
+            Aukce: <span id="countAuc">0</span>
+          </div>
+        </div>
+
+        <div class="dash-actions">
+          <button class="btn-ghost" id="refreshBtn" type="button">Reload</button>
+          <button class="btn-ghost" id="logoutBtn" type="button">Logout</button>
+        </div>
+      </div>
+
+      <!-- TABS -->
+      <div class="tabs">
+        <button class="tab active" id="tabOrders" type="button">Objednávky</button>
+        <button class="tab" id="tabBuy" type="button">Výkup</button>
+        <button class="tab" id="tabAuc" type="button">Aukce</button>
+      </div>
+
+      <!-- ===================== ORDERS VIEW ===================== -->
+      <div id="ordersPane">
+        <div class="filters">
+          <input id="searchInput" class="input" type="text" placeholder="Hledat: číslo, email, jméno…" autocomplete="off" />
+          <select id="statusFilter" class="input">
+            <option value="all">Vše</option>
+            <option value="awaiting_payment">awaiting_payment (bank)</option>
+            <option value="new">new (dobírka)</option>
+            <option value="paid">paid</option>
+            <option value="shipped">shipped</option>
+            <option value="expired">expired</option>
+            <option value="cancelled">cancelled</option>
+            <option value="returned">returned</option>
+          </select>
+          <select id="paymentFilter" class="input">
+            <option value="all">Platba: vše</option>
+            <option value="bank">bank</option>
+            <option value="cod">cod</option>
+          </select>
+
+          <button class="btn-ghost" id="exportCsvBtn" type="button">Export CSV (Zásilkovna)</button>
+        </div>
+
+        <div class="table-wrap">
+          <table class="table" id="ordersTable">
+            <thead>
+              <tr>
+                <th></th>
+                <th>Číslo</th>
+                <th>Stav</th>
+                <th>Platba</th>
+                <th>Celkem</th>
+                <th>Zákazník</th>
+                <th>Doručení</th>
+                <th>Pickup</th>
+                <th>Vytvořeno</th>
+                <th>Deadline</th>
+                <th>Akce</th>
+              </tr>
+            </thead>
+            <tbody id="ordersBody">
+              <tr><td colspan="11" class="muted">Načítám…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ===================== BUY VIEW ===================== -->
+      <div id="buyPane" class="hidden">
+        <div class="filters">
+          <input id="buySearchInput" class="input" type="text" placeholder="Hledat: email, typ, poznámka…" autocomplete="off" />
+          <select id="buyTypeFilter" class="input">
+            <option value="all">Typ: vše</option>
+            <option value="singles">Kusové</option>
+            <option value="bulk">Bulk</option>
+          </select>
+          <select id="buySort" class="input">
+            <option value="newest">Nejnovější</option>
+            <option value="oldest">Nejstarší</option>
+          </select>
+        </div>
+
+        <div class="table-wrap">
+          <table class="table" id="buyTable">
+            <thead>
+              <tr>
+                <th>Čas</th>
+                <th>Typ</th>
+                <th>E-mail</th>
+                <th>Obsah</th>
+                <th>Fotky</th>
+                <th>Akce</th>
+              </tr>
+            </thead>
+            <tbody id="buyBody">
+              <tr><td colspan="6" class="muted">Načítám…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ===================== AUCTIONS VIEW ===================== -->
+      <div id="aucPane" class="hidden">
+
+        <div class="auc-top">
+          <div class="filters auc-filters">
+            <input id="aucSearchInput" class="input" type="text" placeholder="Hledat: název / popis / FB url…" autocomplete="off" />
+            <select id="aucPubFilter" class="input">
+              <option value="all">Publikace: vše</option>
+              <option value="pub">Jen publikované</option>
+              <option value="unpub">Jen skryté</option>
+            </select>
+            <select id="aucSort" class="input">
+              <option value="ends_desc">Konec: nejpozději</option>
+              <option value="ends_asc">Konec: nejdřív</option>
+              <option value="newest">Nejnovější</option>
+              <option value="oldest">Nejstarší</option>
+            </select>
+            <button class="btn-ghost" id="aucNewBtn" type="button">+ Nová aukce</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="table" id="aucTable">
+            <thead>
+              <tr>
+                <th>Název</th>
+                <th>Stav</th>
+                <th>Start</th>
+                <th>Konec</th>
+                <th>Publikováno</th>
+                <th>Fotky</th>
+                <th>Akce</th>
+              </tr>
+            </thead>
+            <tbody id="aucBody">
+              <tr><td colspan="7" class="muted">Načítám…</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="sep-line"></div>
+
+        <!-- Editor -->
+        <section class="auc-editor" id="aucEditor">
+          <div class="auc-editor-top">
+            <div>
+              <div class="auc-editor-title">Editor aukce</div>
+              <div class="muted small" id="aucEditorHint">Vytvoř / uprav aukci a nahraj fotky. Vše jde přes Supabase.</div>
+            </div>
+            <div class="actions">
+              <button class="btn-ghost" id="aucClearBtn" type="button">Zrušit edit</button>
+            </div>
+          </div>
+
+          <form class="auc-form" id="aucForm" novalidate>
+            <div class="grid-2">
+              <label>
+                Název aukce*
+                <input id="aucTitle" type="text" required placeholder="Např. Pikachu bundle / kusovky / sealed…" />
+              </label>
+
+              <label>
+                URL aukce (FB)*
+                <input id="aucUrl" type="url" required placeholder="https://www.facebook.com/..." />
+              </label>
+            </div>
+
+            <label>
+              Popis
+              <textarea id="aucDesc" rows="4" placeholder="Co je v aukci, stav, pravidla, atd."></textarea>
+            </label>
+
+            <div class="grid-2">
+              <label>
+                Start (volitelné)
+                <input id="aucStarts" type="datetime-local" />
+              </label>
+
+              <label>
+                Konec*
+                <input id="aucEnds" type="datetime-local" required />
+              </label>
+            </div>
+
+            <div class="grid-2">
+              <label>
+                Řazení (sort_order)
+                <input id="aucSortOrder" type="number" placeholder="0" />
+              </label>
+
+              <label class="checkline">
+                <input id="aucPublished" type="checkbox" />
+                Publikovat (is_published)
+              </label>
+            </div>
+
+            <div class="actions">
+              <button class="btn-primary" id="aucSaveBtn" type="submit">Uložit aukci</button>
+              <p class="msg" id="aucMsg" aria-live="polite"></p>
+            </div>
+          </form>
+
+          <div class="sep-line"></div>
+
+          <div class="auc-images">
+            <div class="auc-images-top">
+              <div>
+                <div class="auc-editor-title">Fotky</div>
+                <div class="muted small">Nahraj víc fotek najednou. Uloží se do bucketu <b>auctions</b> do složky podle ID aukce.</div>
+              </div>
+              <div class="actions">
+                <input id="aucPhotos" type="file" accept="image/*" multiple />
+                <button class="btn-ghost" id="aucUploadBtn" type="button">Nahrát fotky</button>
+              </div>
+            </div>
+
+            <div class="auc-photo-grid" id="aucPhotoGrid"></div>
+          </div>
+
+        </section>
+      </div>
+
+      <p class="msg" id="dashMsg" aria-live="polite"></p>
+    </section>
+
+    <!-- ACCESS DENIED VIEW -->
+    <section class="card hidden" id="deniedView">
+      <h2>Access denied</h2>
+      <p class="sub">Jsi přihlášený, ale nejsi admin. (Tvoje user_id není v admin_users.)</p>
+      <div class="dash-actions">
+        <button class="btn-ghost" id="deniedLogoutBtn" type="button">Logout</button>
+      </div>
+    </section>
+
+    <!-- PHOTO MODAL -->
+    <div class="modal hidden" id="photoModal" role="dialog" aria-modal="true">
+      <div class="modal-card">
+        <div class="modal-top">
+          <div>
+            <div class="modal-title">Fotky výkupu</div>
+            <div class="muted small" id="photoMeta">—</div>
+          </div>
+          <button class="btn-ghost" id="closeModalBtn" type="button">Zavřít</button>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn-primary" id="downloadZipBtn" type="button">Stáhnout vše (ZIP)</button>
+        </div>
+
+        <div class="photo-grid" id="photoGrid"></div>
+        <p class="msg" id="modalMsg" aria-live="polite"></p>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="js/adminfun.js"></script>
+  <script src="js/footerfun.js"></script>
+</body>
+</html>

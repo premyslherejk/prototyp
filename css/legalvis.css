@@ -1,0 +1,410 @@
+/* ===================== LEGAL PAGE ===================== */
+.legal-page{
+  max-width: 980px;
+  margin: auto;
+  padding: 56px 20px;
+  color: #fff;
+  font-family: Inter, system-ui, sans-serif;
+}
+
+.legal-header{
+  margin-bottom: 18px;
+}
+
+.legal-header h1{
+  font-size: 2.15rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.legal-sub{
+  margin-top: 10px;
+  opacity: .7;
+  font-size: .95rem;
+}
+
+/* Cards */
+.legal-card{
+  background: #15151d;
+  border: 1px solid #2a2a33;
+  border-radius: 20px;
+  padding: 22px;
+  margin-top: 16px;
+}
+
+.legal-card p{
+  opacity: .82;
+  line-height: 1.7;
+  font-size: 1rem;
+  margin-bottom: 12px;
+}
+
+.legal-note{
+  opacity: .6;
+  font-size: .95rem;
+  margin-top: 8px;
+}
+
+/* Headings */
+.legal-card h2{
+  margin: 0 0 12px;
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: #ff3b3b;
+  scroll-margin-top: 14px; /* aby anchor nesedl pod header */
+}
+
+/* Lists */
+.legal-card ol{
+  padding-left: 18px;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.legal-card li{
+  opacity: .82;
+  line-height: 1.65;
+}
+
+/* Seller box */
+.legal-box{
+  margin-top: 14px;
+  background: #0f0f14;
+  border: 1px solid #2a2a33;
+  border-radius: 18px;
+  padding: 16px;
+}
+
+.legal-box p{
+  margin-bottom: 8px;
+  opacity: .85;
+}
+
+.legal-box p:last-child{
+  margin-bottom: 0;
+}
+
+/* TOC */
+.legal-toc{
+  margin-top: 16px;
+  background: #0f0f14;
+  border: 1px solid #2a2a33;
+  border-radius: 20px;
+  padding: 18px;
+}
+
+.legal-toc h3{
+  font-size: 1rem;
+  font-weight: 900;
+  margin-bottom: 12px;
+  opacity: .85;
+}
+
+.toc-grid{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.legal-toc a{
+  display: block;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid #2a2a33;
+  background: #15151d;
+  color: #fff;
+  text-decoration: none;
+  opacity: .78;
+  font-weight: 800;
+  font-size: .92rem;
+  transition: .15s;
+}
+
+.legal-toc a:hover{
+  opacity: 1;
+  border-color: rgba(255,59,59,.55);
+  box-shadow: 0 0 0 2px rgba(255,59,59,.12);
+  transform: translateY(-1px);
+}
+
+/* active section (scroll spy) */
+.legal-toc a.is-active{
+  opacity: 1;
+  border-color: rgba(255,59,59,.75);
+  box-shadow: 0 0 0 2px rgba(255,59,59,.14);
+  transform: translateY(-1px);
+}
+
+/* End */
+.legal-end{
+  margin-top: 26px;
+  text-align: center;
+  opacity: .55;
+  font-size: .9rem;
+}
+
+.legal-end hr{
+  border: none;
+  height: 1px;
+  background: #2a2a33;
+  margin: 18px 0 12px;
+}
+
+/* Back to top button */
+.back-to-top{
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+  border: 1px solid #2a2a33;
+  background: #15151d;
+  color: #fff;
+  font-weight: 900;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(8px);
+  transition: .18s;
+  z-index: 9999;
+}
+
+.back-to-top:hover{
+  border-color: rgba(255,59,59,.6);
+  box-shadow: 0 0 0 2px rgba(255,59,59,.12);
+}
+
+.back-to-top.show{
+  opacity: .95;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+/* Mobile */
+@media (max-width: 900px){
+  .legal-page{
+    padding: 36px 14px;
+  }
+
+  .legal-header h1{
+    font-size: 1.75rem;
+  }
+
+  .legal-card{
+    padding: 18px;
+    border-radius: 18px;
+  }
+
+  .toc-grid{
+    grid-template-columns: 1fr;
+  }
+
+  .legal-toc a{
+    font-size: .95rem;
+  }
+
+  .back-to-top{
+    right: 12px;
+    bottom: 12px;
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+  }
+}
+
+/* ===================== ADDED: FORM + ACTIONS (non-breaking) ===================== */
+
+.legal-mini{
+  opacity: .72;
+  font-size: .92rem;
+  line-height: 1.6;
+  margin-top: 8px;
+}
+
+.legal-actions{
+  margin-top: 12px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.legal-actions-left{
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.btn-legal{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 999px;
+  border: 1px solid #2a2a33;
+  background: #15151d;
+  color: #fff;
+  font-weight: 900;
+  cursor: pointer;
+  transition: .15s;
+  text-decoration: none;
+}
+
+.btn-legal:hover{
+  border-color: rgba(255,59,59,.6);
+  box-shadow: 0 0 0 2px rgba(255,59,59,.12);
+  transform: translateY(-1px);
+}
+
+.btn-legal.primary{
+  border: none;
+  background: linear-gradient(135deg,#ff3b3b,#c40000);
+}
+
+.btn-legal.primary:hover{
+  box-shadow: 0 18px 40px rgba(0,0,0,.35);
+  transform: translateY(-1px);
+}
+
+.legal-form{
+  margin-top: 14px;
+  display: grid;
+  gap: 12px;
+}
+
+.legal-form .row{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.legal-form label{
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: .85rem;
+  color: rgba(255,255,255,.75);
+  font-weight: 700;
+}
+
+.legal-form input,
+.legal-form textarea{
+  padding: 12px 12px;
+  border-radius: 14px;
+  border: 1px solid #2a2a33;
+  background: #0f0f14;
+  color: #fff;
+  outline: none;
+  font-family: Inter, system-ui, sans-serif;
+  font-size: .98rem;
+}
+
+.legal-form textarea{
+  min-height: 110px;
+  resize: vertical;
+}
+
+/* Checklist (simple guide) */
+.legal-check{
+  margin-top: 10px;
+  display: grid;
+  gap: 10px;
+  padding-left: 0;
+  list-style: none;
+}
+
+.legal-check li{
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  opacity: .86;
+  line-height: 1.6;
+}
+
+.legal-dot{
+  width: 22px;
+  height: 22px;
+  border-radius: 8px;
+  border: 1px solid #2a2a33;
+  background: #0f0f14;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  margin-top: 2px;
+  font-weight: 900;
+  opacity: .95;
+}
+
+/* Mobile tweaks for added blocks */
+@media (max-width: 900px){
+  .legal-form .row{ grid-template-columns: 1fr; }
+  .legal-actions{ justify-content: center; }
+}
+
+/* Print mode (doesn't affect normal view) */
+@media print{
+  /* default: nic netiskni */
+  body *{
+    visibility: hidden !important;
+  }
+
+  /* vytiskni jen oblast s formulářem */
+  .print-area,
+  .print-area *{
+    visibility: visible !important;
+  }
+
+  /* pozicování print oblasti na stránku */
+  .print-area{
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 0;
+  }
+
+  /* kosmetika pro tisk */
+  body{
+    background: #fff !important;
+    color:#000 !important;
+  }
+
+  .print-area{
+    background:#fff !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  .print-area h2{
+    color:#000 !important;
+  }
+
+  .legal-form input,
+  .legal-form textarea{
+    background:#fff !important;
+    color:#000 !important;
+    border:1px solid #ddd !important;
+  }
+
+  /* nechci v tisku akční tlačítka */
+  .legal-actions{
+    display:none !important;
+  }
+
+  /* volitelně: schovej footer/end copyright, i když je uvnitř wrapperu */
+  .legal-end{
+    display:none !important;
+  }
+}

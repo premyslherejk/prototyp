@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aukce | PokeKusovky</title>
+
+  <link rel="stylesheet" href="css/headervis.css" />
+  <link rel="stylesheet" href="css/footervis.css" />
+  <link rel="stylesheet" href="css/aukcevis.css" />
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+</head>
+
+<body class="aukce-page">
+  <header class="site-header">
+    <div class="logo" onclick="location.href='index.html'">PokeKusovky</div>
+  </header>
+
+  <div class="auc-tabs">
+  <button class="auc-tab active" data-tab="live">🔥 LIVE</button>
+  <button class="auc-tab" data-tab="scheduled">📅 Plánované</button>
+  <button class="auc-tab" data-tab="history">🏆 Historie</button>
+</div>
+
+
+  <main class="aukce-wrap">
+    <header class="aukce-header">
+      <h1>Aukce</h1>
+      <p class="sub">Aktuální / plánované aukce + historie. Vše na FB, tady máš přehled a odpočet.</p>
+    </header>
+
+    <!-- HERO / CURRENT -->
+    <section class="card">
+      <div class="card-top">
+        <h2 id="currentTitle">Aktuální aukce</h2>
+        <div class="meta" id="currentMeta">—</div>
+      </div>
+
+      <div id="currentList" class="auc-list">
+        <div class="muted">Načítám…</div>
+      </div>
+    </section>
+
+    <!-- HISTORY -->
+    <section class="card">
+      <div class="card-top">
+        <h2>Historie aukcí</h2>
+        <div class="meta" id="historyMeta">—</div>
+      </div>
+
+      <div id="historyList" class="auc-list">
+        <div class="muted">Načítám…</div>
+      </div>
+    </section>
+
+    <p class="page-msg" id="pageMsg" aria-live="polite"></p>
+  </main>
+
+  <!-- DESCRIPTION MODAL -->
+  <div class="modal hidden" id="descModal" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <div class="modal-top">
+        <div>
+          <div class="modal-title" id="modalTitle">—</div>
+          <div class="muted small" id="modalMeta">—</div>
+        </div>
+        <button class="btn-ghost" id="closeModalBtn" type="button">Zavřít</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="modal-desc" id="modalDesc">—</div>
+      </div>
+
+      <div class="modal-actions">
+        <a class="btn-primary" id="modalGoBtn" href="#" target="_blank" rel="noopener">Otevřít aukci na FB</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- LIGHTBOX -->
+<div class="lightbox hidden" id="lightbox">
+  <img id="lightboxImg" src="" alt="">
+</div>
+
+  <script src="js/aukcefun.js"></script>
+  <script src="js/footerfun.js"></script>
+</body>
+</html>

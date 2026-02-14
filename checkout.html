@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Checkout | PokeKusovky</title>
+
+  <link rel="stylesheet" href="css/headervis.css" />
+  <link rel="stylesheet" href="css/footervis.css" />
+  <link rel="stylesheet" href="css/checkoutvis.css" />
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+
+  <!-- ✅ Packeta / Zásilkovna widget (MUSÍ být v <head>) -->
+  <script src="https://widget.packeta.com/www/js/library.js"></script>
+</head>
+
+<body>
+
+  <header class="site-header">
+    <div class="logo" onclick="location.href='index.html'">PokeKusovky</div>
+  </header>
+
+  <main class="checkout-page">
+    <header class="checkout-header">
+      <h1>Objednávka</h1>
+      <p class="checkout-sub">Vyplň údaje, zvol platbu, vyber výdejní místo a pak to odpálíme.</p>
+    </header>
+
+    <div class="checkout-layout">
+
+      <!-- LEFT: FORM -->
+      <section class="checkout-card">
+        <h2>Fakturační údaje</h2>
+
+        <form id="checkoutForm" class="checkout-form" novalidate>
+          <div class="grid-2">
+            <label>
+              Jméno*
+              <input id="firstName" name="firstName" type="text" autocomplete="given-name" required />
+            </label>
+            <label>
+              Příjmení*
+              <input id="lastName" name="lastName" type="text" autocomplete="family-name" required />
+            </label>
+          </div>
+
+          <div class="grid-2">
+            <label>
+              E-mail*
+              <input id="email" name="email" type="email" autocomplete="email" required />
+            </label>
+            <label>
+              Telefon
+              <input id="phone" name="phone" type="tel" autocomplete="tel" />
+            </label>
+          </div>
+
+          <label>
+            Ulice a číslo popisné*
+            <input id="street" name="street" type="text" autocomplete="street-address" required />
+          </label>
+
+          <div class="grid-3">
+            <label>
+              Město*
+              <input id="city" name="city" type="text" autocomplete="address-level2" required />
+            </label>
+            <label>
+              PSČ*
+              <input id="zip" name="zip" type="text" inputmode="numeric" autocomplete="postal-code" required />
+            </label>
+            <label>
+              Země
+              <select id="country" name="country">
+                <option value="CZ" selected>CZ</option>
+              </select>
+            </label>
+          </div>
+
+          <!-- DOPRAVA -->
+          <div class="section-delivery">
+            <div class="sep"></div>
+            <h2>Doprava</h2>
+
+            <div class="choice-grid">
+              <label class="choice">
+                <input type="radio" name="delivery" value="zasilkovna" checked />
+                <span class="choice-main">
+                  <span class="choice-title">Zásilkovna</span>
+                  <span class="choice-sub">Výdejní místo / box (vybereš níž)</span>
+                </span>
+                <span class="choice-price">89 Kč</span>
+              </label>
+            </div>
+
+            <div class="packeta-block">
+              <button id="pickPacketa" class="btn-packeta" type="button">
+                📍 Vybrat výdejní místo
+              </button>
+
+              <div id="pickupSelected" class="pickup-selected">
+                <span class="muted">Zatím nic vybráno.</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- PLATBA + POZNÁMKA -->
+          <div class="section-payment">
+            <div class="sep"></div>
+            <h2>Platba</h2>
+
+            <div class="choice-grid" id="paymentChoices">
+              <label class="choice">
+                <input type="radio" name="payment" value="bank" checked />
+                <span class="choice-main">
+                  <span class="choice-title">Platba převodem / QR</span>
+                  <span class="choice-sub">Rezervace 24 hodin</span>
+                </span>
+                <span class="choice-price">0 Kč</span>
+              </label>
+
+              <label class="choice">
+                <input type="radio" name="payment" value="cod" />
+                <span class="choice-main">
+                  <span class="choice-title">Dobírka</span>
+                  <span class="choice-sub">+35 Kč, rezervace bez limitu</span>
+                </span>
+                <span class="choice-price">35 Kč</span>
+              </label>
+            </div>
+
+            <label class="note">
+              Poznámka (volitelné)
+              <textarea id="note" rows="3" placeholder="Např. prosím zabalit extra safe…"></textarea>
+            </label>
+
+            <!-- ✅ INLINE SUMMARY (jen mobil) -->
+            <section class="checkout-card summary-inline" id="summaryInline">
+              <h2>Shrnutí</h2>
+
+              <div class="cart-mini" id="cartMiniInline">
+                <p style="opacity:.7">Načítám košík…</p>
+              </div>
+
+              <div class="totals">
+                <div class="row"><span>Mezisoučet</span><strong id="sumSubtotalInline">0 Kč</strong></div>
+                <div class="row"><span>Doprava + poplatky</span><strong id="sumShipInline">0 Kč</strong></div>
+                <div class="row total"><span>Celkem</span><strong id="sumTotalInline">0 Kč</strong></div>
+                <div class="small" id="reserveHintInline"></div>
+              </div>
+
+              <button class="btn-ghost" type="button" onclick="location.href='cart.html'">← Zpět do košíku</button>
+            </section>
+
+          </div>
+
+          <!-- CHECKBOXY + SUBMIT -->
+          <div class="section-confirm">
+            <div class="sep"></div>
+
+            <label class="check">
+              <input id="termsAccepted" type="checkbox" />
+              <span>Souhlasím s <a href="terms.html" target="_blank" rel="noopener">obchodními podmínkami</a>*</span>
+            </label>
+
+            <label class="check">
+              <input id="gdprAccepted" type="checkbox" />
+              <span>Souhlasím se <a href="gdpr.html" target="_blank" rel="noopener">zpracováním osobních údajů</a>*</span>
+            </label>
+
+            <button class="btn-primary" id="submitOrder" type="submit">
+              Objednat
+            </button>
+
+            <p class="form-msg" id="formMsg" aria-live="polite"></p>
+          </div>
+
+        </form>
+      </section>
+
+      <!-- RIGHT: SUMMARY (jen desktop) -->
+      <aside class="checkout-card sticky summary-desktop" id="summaryDesktop">
+        <h2>Shrnutí</h2>
+
+        <div class="cart-mini" id="cartMini">
+          <p style="opacity:.7">Načítám košík…</p>
+        </div>
+
+        <div class="totals">
+          <div class="row"><span>Mezisoučet</span><strong id="sumSubtotal">0 Kč</strong></div>
+          <div class="row"><span>Doprava + poplatky</span><strong id="sumShip">0 Kč</strong></div>
+          <div class="row total"><span>Celkem</span><strong id="sumTotal">0 Kč</strong></div>
+          <div class="small" id="reserveHint"></div>
+        </div>
+
+        <button class="btn-ghost" type="button" onclick="location.href='cart.html'">← Zpět do košíku</button>
+      </aside>
+
+    </div>
+  </main>
+
+  <script src="js/checkoutfun.js"></script>
+  <script src="js/footerfun.js"></script>
+</body>
+</html>
