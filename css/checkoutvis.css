@@ -543,4 +543,37 @@ textarea{ resize: vertical; min-height: 92px; }
   }
 }
 
+
 .hidden{ display:none !important; }
+
+/* ===================== NEWSLETTER OPT-IN ===================== */
+
+.nl-consent{
+  display:flex;
+  align-items:flex-start;
+  gap: 10px;
+
+  padding: 12px 14px;
+  border-radius: 16px;
+
+  border: 1px solid #2a2a33;
+  background: #0f0f14;
+
+  color: rgba(255,255,255,.85);
+  font-size: .92rem;
+  line-height: 1.35;
+
+  margin-top: 6px;
+}
+
+.nl-consent input{
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+
+  accent-color: rgb(168,85,247);
+}
+
+.nl-consent span{
+  opacity: .9;
+}
