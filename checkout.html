@@ -157,25 +157,35 @@
           </div>
 
           <!-- CHECKBOXY + SUBMIT -->
-          <div class="section-confirm">
-            <div class="sep"></div>
+          <!-- CHECKBOXY + SUBMIT -->
+<div class="section-confirm">
+  <div class="sep"></div>
 
-            <label class="check">
-              <input id="termsAccepted" type="checkbox" />
-              <span>Souhlasím s <a href="terms.html" target="_blank" rel="noopener">obchodními podmínkami</a>*</span>
-            </label>
+  <label class="check">
+    <input id="termsAccepted" type="checkbox" />
+    <span>Souhlasím s <a href="terms.html" target="_blank" rel="noopener">obchodními podmínkami</a>*</span>
+  </label>
 
-            <label class="check">
-              <input id="gdprAccepted" type="checkbox" />
-              <span>Souhlasím se <a href="gdpr.html" target="_blank" rel="noopener">zpracováním osobních údajů</a>*</span>
-            </label>
+  <label class="check">
+    <input id="gdprAccepted" type="checkbox" />
+    <span>Souhlasím se <a href="gdpr.html" target="_blank" rel="noopener">zpracováním osobních údajů</a>*</span>
+  </label>
 
-            <button class="btn-primary" id="submitOrder" type="submit">
-              Objednat
-            </button>
+  <!-- ✅ NEWSLETTER CHECKBOX -->
+  <label class="nl-consent">
+    <input id="newsletterOptIn" type="checkbox" checked />
+    <span>
+      Chci dostávat novinky, aukce a dropy e-mailem (max párkrát do měsíce)
+    </span>
+  </label>
 
-            <p class="form-msg" id="formMsg" aria-live="polite"></p>
-          </div>
+  <button class="btn-primary" id="submitOrder" type="submit">
+    Objednat
+  </button>
+
+  <p class="form-msg" id="formMsg" aria-live="polite"></p>
+</div>
+
 
         </form>
       </section>
@@ -204,4 +214,5 @@
   <script src="js/checkoutfun.js"></script>
   <script src="js/footerfun.js"></script>
 </body>
+
 </html>
