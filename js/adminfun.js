@@ -1143,9 +1143,7 @@ function nlBuildPreviewList() {
   if (seg.excludeUnsub) {
     rows = rows.filter(m => {
       const s = subsMap.get(String(m.email || '').toLowerCase().trim());
-      // pokud subscriber neexistuje, necháme to projít (protože může být customer bez subscribe),
-      // ale ty pak stejně budeš posílat jen subscribed – to uděláme v dalším kroku.
-      if (!s) return true;
+      if (!s) return true; // customer bez subscribe necháme projít
       return !s.is_unsubscribed;
     });
   }
@@ -1155,12 +1153,12 @@ function nlBuildPreviewList() {
     rows = rows.filter(m => Number(m.orders_count || 0) === 0);
   }
 
-  // no buy X days (počítáme z last_order_at, fallback last_any_order_at)
+  // no buy X days
   if (seg.noBuyDays) {
     rows = rows.filter(m => {
       const last = m.last_order_at || m.last_any_order_at;
       const d = daysSince(last);
-      if (d === null) return true; // nikdy? tak projde
+      if (d === null) return true;
       return d >= seg.noBuyDays;
     });
   }
@@ -1200,12 +1198,12 @@ function nlBuildPreviewList() {
     rows = rows.filter(m => String(m.prefers_language || '').toUpperCase() === seg.prefersLanguage.toUpperCase());
   }
 
-  // cheap/expensive preference by avg_item_price
+  // cheap/expensive preference
   if (seg.pricePref) {
     rows = rows.filter(m => nlPricePrefMatch(m.avg_item_price, seg.pricePref));
   }
 
-  // řazení: nejvíc spent desc, pak nejnovější order desc
+  // řazení: spent desc, pak poslední order desc
   rows.sort((a,b) => {
     const A = Number(a.total_spent || 0);
     const B = Number(b.total_spent || 0);
@@ -1223,10 +1221,8 @@ function nlRenderPreview() {
 
   const { rows, subsMap } = nlBuildPreviewList();
 
-  // count
   if (els.newsCountAll) els.newsCountAll.textContent = String(rows.length);
 
-  // “subscribed count” odhad (kolik z preview je reálně v newsletter_subscribers a není unsub)
   if (els.newsCountSubs) {
     const subs = rows.filter(r => {
       const s = subsMap.get(String(r.email || '').toLowerCase().trim());
@@ -1242,7 +1238,6 @@ function nlRenderPreview() {
     return;
   }
 
-  // show max 200 v UI (aby se to nezadusilo), export může dát všechny
   const show = rows.slice(0, 200);
 
   els.nlPreviewList.innerHTML = `
@@ -1276,7 +1271,7 @@ function nlRenderPreview() {
 }
 
 async function nlLoadMetrics() {
-  // ✅ IMPORTANT: metrics jdou přes RPC (protože view je revoke a/nebo security definer)
+  // ✅ IMPORTANT: metrics jdou přes RPC
   const { data, error } = await sb.rpc('admin_newsletter_customer_metrics');
   if (error) throw error;
   NL_METRICS = Array.isArray(data) ? data : [];
@@ -1331,7 +1326,6 @@ function nlFillCampaignEditor(c) {
   if (els.nlCampName) els.nlCampName.value = c.name || '';
   if (els.nlSubject) els.nlSubject.value = c.subject || '';
   if (els.nlPreheader) els.nlPreheader.value = c.preheader || '';
-  // html nečteme v listu (šetří), načteme při load detail (viz níž)
 }
 
 async function nlLoadCampaignDetail(id) {
@@ -1348,8 +1342,6 @@ function nlEmailsFromPreview({ onlySubscribed = false } = {}) {
   const { rows, subsMap } = nlBuildPreviewList();
 
   let emails = rows.map(r => String(r.email || '').toLowerCase().trim()).filter(Boolean);
-
-  // dedupe
   emails = Array.from(new Set(emails));
 
   if (onlySubscribed) {
@@ -1365,7 +1357,6 @@ function nlEmailsFromPreview({ onlySubscribed = false } = {}) {
 function nlExportEmailsCsv() {
   if (!nlHasUI()) return;
 
-  // ⚡ default: export jen subscribed & not unsubscribed (protože newsletter reálně)
   const emails = nlEmailsFromPreview({ onlySubscribed: true });
 
   if (!emails.length) {
@@ -1477,10 +1468,22 @@ document.addEventListener("DOMContentLoaded", async () => {
   els.tabOrders?.addEventListener('click', () => setTab('orders'));
   els.tabBuy?.addEventListener('click', () => setTab('buy'));
   els.tabAuc?.addEventListener('click', () => setTab('auc'));
-  els.tabNews?.addEventListener('click', () => {
+
+  // ✅ FIX: newsletter tab často existuje, ale data ještě nejsou / UI prázdné.
+  // Když klikneš na Newsletter:
+  // - přepne tab
+  // - pokud data nejsou načtená, načte je (a pak renderne)
+  els.tabNews?.addEventListener('click', async () => {
     setTab('news');
-    // render preview “just in case”
-    if (nlHasUI()) nlRenderPreview();
+    if (!nlHasUI()) return;
+
+    // když nejsou data, načti je; jinak jen render
+    if (!NL_METRICS.length && !NL_SUBSCRIBERS.length && !NL_CAMPAIGNS.length) {
+      await nlReloadAll();
+    } else {
+      nlRenderPreview();
+      nlRenderCampaignsTable();
+    }
   });
 
   // Login
@@ -1713,7 +1716,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         const c = await nlLoadCampaignDetail(id);
         nlFillCampaignEditor(c);
         if (els.nlHtml) els.nlHtml.value = c.html || '';
-        // volitelně: můžeš i nacpat segment_json do UI (zatím neřeším auto-apply, je to pain)
         setMsg(els.newsMsg, 'ok', 'Kampaň načtena ✅');
         setTimeout(() => setMsg(els.newsMsg, '', ''), 900);
       } catch (err) {
