@@ -1277,25 +1277,72 @@ async function nlLoadMetrics() {
   NL_METRICS = Array.isArray(data) ? data : [];
 }
 
-async function nlLoadSubscribers() {
-  const { data, error } = await sb
-    .from('newsletter_subscribers')
-    .select('id,email,is_unsubscribed,unsubscribed_at,subscribed_at,source')
-    .order('created_at', { ascending: false })
-    .limit(5000);
-  if (error) throw error;
-  NL_SUBSCRIBERS = data || [];
+function sbErrToText(err) {
+  if (!err) return 'Unknown error';
+  // supabase-js error obvykle má: message, details, hint, code
+  const parts = [
+    err.message,
+    err.details,
+    err.hint,
+    err.code ? `code=${err.code}` : null
+  ].filter(Boolean);
+  return parts.join(' | ') || String(err);
 }
 
+function sortByFirstExistingDateDesc(rows, fields) {
+  const arr = Array.isArray(rows) ? [...rows] : [];
+  const getTime = (r) => {
+    for (const f of fields) {
+      const v = r?.[f];
+      if (!v) continue;
+      const t = new Date(v).getTime();
+      if (!Number.isNaN(t)) return t;
+    }
+    return 0;
+  };
+  arr.sort((a,b) => getTime(b) - getTime(a));
+  return arr;
+}
+
+
+async function nlLoadSubscribers() {
+  // ✅ žádný order=created_at (protože může neexistovat)
+  const { data, error } = await sb
+    .from('newsletter_subscribers')
+    .select('id,email,is_unsubscribed,unsubscribed_at,subscribed_at,source'); // schválně bez created_at
+
+  if (error) throw error;
+
+  // seřadíme v JS: subscribed_at / unsubscribed_at / id (fallback)
+  const rows = Array.isArray(data) ? data : [];
+  NL_SUBSCRIBERS = sortByFirstExistingDateDesc(rows, ['subscribed_at','unsubscribed_at'])
+    .sort((a,b) => {
+      // když jsou časy stejné/nula, dej aspoň stabilní pořadí podle id desc
+      const A = String(a?.id ?? '');
+      const B = String(b?.id ?? '');
+      return B.localeCompare(A);
+    });
+}
+
+
 async function nlLoadCampaigns() {
+  // ✅ žádný created_at v selectu ani orderu (protože může neexistovat)
   const { data, error } = await sb
     .from('newsletter_campaigns')
-    .select('id,created_at,name,subject,preheader,status,scheduled_for,sent_at,segment_json')
-    .order('created_at', { ascending: false })
-    .limit(200);
+    .select('id,name,subject,preheader,status,scheduled_for,sent_at,segment_json'); 
+
   if (error) throw error;
-  NL_CAMPAIGNS = data || [];
+
+  // seřadíme v JS: sent_at / scheduled_for / id
+  const rows = Array.isArray(data) ? data : [];
+  NL_CAMPAIGNS = sortByFirstExistingDateDesc(rows, ['sent_at','scheduled_for'])
+    .sort((a,b) => {
+      const A = String(a?.id ?? '');
+      const B = String(b?.id ?? '');
+      return B.localeCompare(A);
+    });
 }
+
 
 function nlRenderCampaignsTable() {
   if (!els.nlCampsBody) return;
@@ -1418,9 +1465,10 @@ async function nlReloadAll() {
     setMsg(els.newsMsg, 'ok', 'Newsletter ready ✅');
     setTimeout(() => setMsg(els.newsMsg, '', ''), 900);
   } catch (e) {
-    console.error(e);
-    setMsg(els.newsMsg, 'err', e?.message || String(e));
-  }
+  console.error('NEWSLETTER LOAD ERROR:', e);
+  setMsg(els.newsMsg, 'err', sbErrToText(e));
+}
+
 }
 
 /* ===================== AUTH FLOW ===================== */
@@ -1735,3 +1783,4 @@ document.addEventListener("DOMContentLoaded", async () => {
   clearAucEditor();
   await refreshAuthUI();
 });
+
