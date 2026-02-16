@@ -71,10 +71,12 @@
 
       <!-- TABS -->
       <div class="tabs">
-        <button class="tab active" id="tabOrders" type="button">Objednávky</button>
-        <button class="tab" id="tabBuy" type="button">Výkup</button>
-        <button class="tab" id="tabAuc" type="button">Aukce</button>
-      </div>
+  <button class="tab active" id="tabOrders" type="button">Objednávky</button>
+  <button class="tab" id="tabBuy" type="button">Výkup</button>
+  <button class="tab" id="tabAuc" type="button">Aukce</button>
+  <button class="tab" id="tabNews" type="button">Newsletter</button>
+</div>
+
 
       <!-- ===================== ORDERS VIEW ===================== -->
       <div id="ordersPane">
@@ -160,6 +162,197 @@
       <!-- ===================== AUCTIONS VIEW ===================== -->
       <div id="aucPane" class="hidden">
 
+        <!-- ===================== NEWSLETTER VIEW ===================== -->
+<div id="newsPane" class="hidden">
+
+  <div class="news-top">
+    <div>
+      <div class="auc-editor-title">Newsletter</div>
+      <div class="muted small">
+        Segmentace zákazníků + uložené drafty. Posílání doděláme později (zatím export CSV).
+      </div>
+    </div>
+
+    <div class="news-stats">
+      <span class="pill">Preview: <b id="newsCountAll">0</b></span>
+      <span class="pill singles">Subscribed: <b id="newsCountSubs">0</b></span>
+    </div>
+  </div>
+
+  <div class="sep-line"></div>
+
+  <!-- Filters -->
+  <div class="news-grid">
+    <section class="news-card">
+      <div class="news-card-top">
+        <div>
+          <div class="news-title">Filtry</div>
+          <div class="muted small">Klikáš / píšeš → preview se přepočítá.</div>
+        </div>
+        <button class="btn-ghost" id="nlRefreshBtn" type="button">Reload data</button>
+      </div>
+
+      <div class="news-filters">
+        <label>
+          Nenakoupil (dní)
+          <select id="nlNoBuyDays" class="input">
+            <option value="">—</option>
+            <option value="7">7</option>
+            <option value="14">14</option>
+            <option value="30">30</option>
+            <option value="60">60</option>
+            <option value="90">90</option>
+          </select>
+        </label>
+
+        <label class="checkline">
+          <input id="nlNeverBought" type="checkbox" />
+          Nikdy nenakoupil
+        </label>
+
+        <label>
+          Počet objednávek
+          <select id="nlOrdersBucket" class="input">
+            <option value="">—</option>
+            <option value="1">1</option>
+            <option value="2-4">2–4</option>
+            <option value="5+">5+</option>
+          </select>
+        </label>
+
+        <label>
+          Útrata min (Kč)
+          <input id="nlTotalSpentMin" class="input" type="number" min="0" placeholder="0" />
+        </label>
+
+        <label>
+          AOV min (Kč)
+          <input id="nlAovMin" class="input" type="number" min="0" placeholder="0" />
+        </label>
+
+        <label class="checkline">
+          <input id="nlVipTop10" type="checkbox" />
+          VIP top 10 (útrata)
+        </label>
+
+        <label class="checkline">
+          <input id="nlHasPending" type="checkbox" />
+          Má pending objednávku
+        </label>
+
+        <label class="checkline">
+          <input id="nlExcludeReturned" type="checkbox" checked />
+          Vyloučit “returned”
+        </label>
+
+        <label>
+          Preference jazyk
+          <select id="nlPrefLang" class="input">
+            <option value="">—</option>
+            <option value="JP">JP</option>
+            <option value="EN">EN</option>
+            <option value="MIX">MIX</option>
+          </select>
+        </label>
+
+        <label>
+          Cenová preference
+          <select id="nlPricePref" class="input">
+            <option value="">—</option>
+            <option value="cheap">Levnější</option>
+            <option value="expensive">Dražší</option>
+          </select>
+        </label>
+
+        <label class="checkline">
+          <input id="nlExcludeUnsub" type="checkbox" checked />
+          Vyloučit unsubscribed
+        </label>
+      </div>
+
+      <div class="actions" style="margin-top:12px;">
+        <button class="btn-ghost" id="nlExportBtn" type="button">Export CSV (jen subscribed)</button>
+      </div>
+
+      <p class="msg" id="newsMsg" aria-live="polite"></p>
+    </section>
+
+    <!-- Preview -->
+    <section class="news-card">
+      <div class="news-card-top">
+        <div>
+          <div class="news-title">Preview</div>
+          <div class="muted small">Max 200 v UI (export dá všechny).</div>
+        </div>
+      </div>
+
+      <div id="nlPreviewList" class="nl-preview">
+        <div class="muted">Načítám…</div>
+      </div>
+    </section>
+  </div>
+
+  <div class="sep-line"></div>
+
+  <!-- Campaign -->
+  <section class="news-card">
+    <div class="news-card-top">
+      <div>
+        <div class="news-title">Kampaň (draft)</div>
+        <div class="muted small">Uloží do DB: subject, preheader, html + segment_json.</div>
+      </div>
+      <button class="btn-primary" id="nlSaveCampaignBtn" type="button">Uložit draft</button>
+    </div>
+
+    <div class="news-campaign">
+      <label>
+        Název kampaně (volitelné)
+        <input id="nlCampName" class="input" type="text" placeholder="Např. JP drop – únor" />
+      </label>
+
+      <div class="grid-2">
+        <label>
+          Subject*
+          <input id="nlSubject" class="input" type="text" placeholder="Např. Nový JP drop je tady 🔥" />
+        </label>
+
+        <label>
+          Preheader
+          <input id="nlPreheader" class="input" type="text" placeholder="Krátkej text pod subjectem…" />
+        </label>
+      </div>
+
+      <label>
+        HTML*
+        <textarea id="nlHtml" rows="10" placeholder="<h1>...</h1>"></textarea>
+      </label>
+    </div>
+  </section>
+
+  <div class="sep-line"></div>
+
+  <!-- Campaigns list (optional) -->
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Kampaň</th>
+          <th>Subject</th>
+          <th>Status</th>
+          <th>Scheduled</th>
+          <th>Sent</th>
+          <th>Akce</th>
+        </tr>
+      </thead>
+      <tbody id="nlCampsBody">
+        <tr><td colspan="6" class="muted">Načítám…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+        
         <div class="auc-top">
           <div class="filters auc-filters">
             <input id="aucSearchInput" class="input" type="text" placeholder="Hledat: název / popis / FB url…" autocomplete="off" />
@@ -316,4 +509,5 @@
   <script src="js/adminfun.js"></script>
   <script src="js/footerfun.js"></script>
 </body>
+
 </html>
