@@ -432,4 +432,101 @@ tr.is-green td:first-child{ border-left: 4px solid #7dffb2; }
 
   .grid-2{ grid-template-columns: 1fr; }
   .auc-photo-grid{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+}
+
+/* ===================== NEWSLETTER ===================== */
+
+.news-top{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.news-stats{
+  display:flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.news-grid{
+  display:grid;
+  grid-template-columns: 1fr 1.25fr;
+  gap: 12px;
+}
+
+.news-card{
+  border: 1px solid #2a2a33;
+  background:#0f0f14;
+  border-radius: 18px;
+  padding: 14px;
+}
+
+.news-card-top{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.news-title{
+  font-weight: 900;
+  font-size: 1.05rem;
+}
+
+.news-filters{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.nl-preview{
+  border:1px solid #2a2a33;
+  border-radius: 16px;
+  padding: 12px;
+  background:#15151d;
+  max-height: 520px;
+  overflow:auto;
+}
+
+.nl-list{
+  display:grid;
+  gap: 10px;
+}
+
+.nl-row{
+  border:1px solid #2a2a33;
+  border-radius: 14px;
+  padding: 10px;
+  background:#0f0f14;
+}
+
+.nl-email{
+  margin-bottom: 6px;
+}
+
+.news-campaign{
+  display:grid;
+  gap: 12px;
+}
+
+.news-campaign textarea{
+  padding: 12px 12px;
+  border-radius: 14px;
+  border: 1px solid #2a2a33;
+  background: #0f0f14;
+  color: #fff;
+  outline: none;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+@media (max-width: 900px){
+  .news-grid{ grid-template-columns: 1fr; }
+  .news-filters{ grid-template-columns: 1fr; }
+  .nl-preview{ max-height: 420px; }
 }
