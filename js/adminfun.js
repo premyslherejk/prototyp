@@ -13,6 +13,44 @@ const SIGNED_URL_TTL = 60 * 10; // 10 min
 // Aukce bucket
 const AUC_BUCKET = 'auctions';
 
+/*
+===========================================================
+NEWSLETTER TAB – MINIMUM HTML IDs (aby se to zobrazilo)
+-----------------------------------------------------------
+Přidej do adminu:
+- button tab:     id="tabNews"
+- pane wrapper:   id="newsPane"  (default hidden)
+Uvnitř newsPane doporučuju:
+- msg:            id="newsMsg"
+- counts:         id="newsCountAll" (celkem v preview)
+                  id="newsCountSubs" (subscribed count)
+- filters:
+    select: id="nlNoBuyDays" (values: "", "7","14","30","60","90")
+    checkbox: id="nlNeverBought"
+    select: id="nlOrdersBucket" (values: "", "1","2-4","5+")
+    input number: id="nlTotalSpentMin"
+    input number: id="nlAovMin"
+    checkbox: id="nlVipTop10"
+    checkbox: id="nlHasPending"
+    checkbox: id="nlExcludeReturned" (default checked)
+    select: id="nlPrefLang" (values: "", "JP","EN","MIX")
+    select: id="nlPricePref" (values: "", "cheap","expensive") // podle avg_item_price
+    checkbox: id="nlExcludeUnsub" (default checked)
+- preview list container: id="nlPreviewList"
+- buttons:
+    id="nlRefreshBtn" (reload metrics)
+    id="nlExportBtn" (export CSV emails)
+    id="nlSaveCampaignBtn" (save draft)
+- campaign fields:
+    input: id="nlCampName"
+    input: id="nlSubject"
+    input: id="nlPreheader"
+    textarea: id="nlHtml"
+- campaigns list:
+    tbody: id="nlCampsBody" (optional)
+===========================================================
+*/
+
 // ===================== UI HELPERS =====================
 const $ = (id) => document.getElementById(id);
 
@@ -44,9 +82,12 @@ const els = {
   tabOrders: $('tabOrders'),
   tabBuy: $('tabBuy'),
   tabAuc: $('tabAuc'),
+  tabNews: $('tabNews'), // ✅ NEW (optional)
+
   ordersPane: $('ordersPane'),
   buyPane: $('buyPane'),
   aucPane: $('aucPane'),
+  newsPane: $('newsPane'), // ✅ NEW (optional)
 
   // orders filters
   searchInput: $('searchInput'),
@@ -100,11 +141,40 @@ const els = {
   aucPhotos: $('aucPhotos'),
   aucUploadBtn: $('aucUploadBtn'),
   aucPhotoGrid: $('aucPhotoGrid'),
+
+  // ===================== NEWSLETTER (optional) =====================
+  newsMsg: $('newsMsg'),
+  newsCountAll: $('newsCountAll'),
+  newsCountSubs: $('newsCountSubs'),
+
+  nlNoBuyDays: $('nlNoBuyDays'),
+  nlNeverBought: $('nlNeverBought'),
+  nlOrdersBucket: $('nlOrdersBucket'),
+  nlTotalSpentMin: $('nlTotalSpentMin'),
+  nlAovMin: $('nlAovMin'),
+  nlVipTop10: $('nlVipTop10'),
+  nlHasPending: $('nlHasPending'),
+  nlExcludeReturned: $('nlExcludeReturned'),
+  nlPrefLang: $('nlPrefLang'),
+  nlPricePref: $('nlPricePref'),
+  nlExcludeUnsub: $('nlExcludeUnsub'),
+
+  nlPreviewList: $('nlPreviewList'),
+  nlRefreshBtn: $('nlRefreshBtn'),
+  nlExportBtn: $('nlExportBtn'),
+
+  nlCampName: $('nlCampName'),
+  nlSubject: $('nlSubject'),
+  nlPreheader: $('nlPreheader'),
+  nlHtml: $('nlHtml'),
+  nlSaveCampaignBtn: $('nlSaveCampaignBtn'),
+
+  nlCampsBody: $('nlCampsBody'),
 };
 
 function showView(which) {
-  Object.values(views).forEach(v => v.classList.add('hidden'));
-  views[which].classList.remove('hidden');
+  Object.values(views).forEach(v => v?.classList?.add('hidden'));
+  views[which]?.classList?.remove('hidden');
 }
 
 function setMsg(el, type, text) {
@@ -137,7 +207,6 @@ function normalizeHttpUrl(url) {
   const s = String(url || '').trim();
   if (!s) return '';
   if (/^https?:\/\//i.test(s)) return s;
-  // když někdo dá "www.facebook.com/..."
   return `https://${s}`;
 }
 
@@ -153,21 +222,29 @@ let ACTIVE_TAB = 'orders';
 function setTab(which) {
   ACTIVE_TAB = which;
 
-  els.tabOrders.classList.toggle('active', which === 'orders');
-  els.tabBuy.classList.toggle('active', which === 'buy');
-  els.tabAuc.classList.toggle('active', which === 'auc');
+  els.tabOrders?.classList?.toggle('active', which === 'orders');
+  els.tabBuy?.classList?.toggle('active', which === 'buy');
+  els.tabAuc?.classList?.toggle('active', which === 'auc');
+  els.tabNews?.classList?.toggle('active', which === 'news'); // ✅
 
-  els.ordersPane.classList.toggle('hidden', which !== 'orders');
-  els.buyPane.classList.toggle('hidden', which !== 'buy');
-  els.aucPane.classList.toggle('hidden', which !== 'auc');
+  els.ordersPane?.classList?.toggle('hidden', which !== 'orders');
+  els.buyPane?.classList?.toggle('hidden', which !== 'buy');
+  els.aucPane?.classList?.toggle('hidden', which !== 'auc');
+  els.newsPane?.classList?.toggle('hidden', which !== 'news'); // ✅
 
   setMsg(els.dashMsg, '', '');
+  setMsg(els.newsMsg, '', '');
 }
 
 // ===================== DATA =====================
 let ORDERS = [];
 let BUY = [];
 let AUCTIONS = [];
+
+// Newsletter data
+let NL_METRICS = [];       // rows from admin_newsletter_customer_metrics()
+let NL_SUBSCRIBERS = [];   // newsletter_subscribers
+let NL_CAMPAIGNS = [];     // newsletter_campaigns
 
 // ---------- Orders ----------
 async function loadOrders() {
@@ -179,13 +256,13 @@ async function loadOrders() {
 
   if (error) throw error;
   ORDERS = data || [];
-  els.countAll.textContent = String(ORDERS.length);
+  if (els.countAll) els.countAll.textContent = String(ORDERS.length);
 }
 
 function getFilteredOrders() {
-  const q = String(els.searchInput.value || '').trim().toLowerCase();
-  const st = els.statusFilter.value || 'all';
-  const pay = els.paymentFilter.value || 'all';
+  const q = String(els.searchInput?.value || '').trim().toLowerCase();
+  const st = els.statusFilter?.value || 'all';
+  const pay = els.paymentFilter?.value || 'all';
 
   return ORDERS.filter(o => {
     if (st !== 'all' && o.status !== st) return false;
@@ -237,19 +314,16 @@ function getActions(order) {
   const pm = order.payment_method;
   const st = order.status;
 
-  // po 21 dnech po odeslání: hotovo (bez tlačítek)
   if (st === 'shipped' && isDone21Days(order)) {
     return { done: true, actions: [] };
   }
 
-  // BANK
   if (pm === 'bank') {
     if (st === 'awaiting_payment') return { done:false, actions:['paid','cancel'] };
     if (st === 'paid') return { done:false, actions:['shipped','cancel'] };
     if (st === 'shipped') return { done:false, actions:['returned','cancel'] };
   }
 
-  // COD
   if (pm === 'cod') {
     if (st === 'new') return { done:false, actions:['shipped','cancel'] };
     if (st === 'shipped') return { done:false, actions:['paid','returned','cancel'] };
@@ -261,7 +335,6 @@ function getActions(order) {
 
 function actionButtons(order) {
   const { done, actions } = getActions(order);
-
   if (done) return `<span class="done-label">HOTOVO ✅</span>`;
 
   return `
@@ -275,8 +348,9 @@ function actionButtons(order) {
 }
 
 function renderOrdersTable() {
-  const rows = getFilteredOrders();
+  if (!els.ordersBody) return;
 
+  const rows = getFilteredOrders();
   if (!rows.length) {
     els.ordersBody.innerHTML = `<tr><td colspan="11" class="muted">Nic tu není.</td></tr>`;
     return;
@@ -392,13 +466,13 @@ async function loadBuyRequests() {
 
   if (error) throw error;
   BUY = data || [];
-  els.countBuy.textContent = String(BUY.length);
+  if (els.countBuy) els.countBuy.textContent = String(BUY.length);
 }
 
 function getFilteredBuy() {
-  const q = String(els.buySearchInput.value || '').trim().toLowerCase();
-  const t = els.buyTypeFilter.value || 'all';
-  const sort = els.buySort.value || 'newest';
+  const q = String(els.buySearchInput?.value || '').trim().toLowerCase();
+  const t = els.buyTypeFilter?.value || 'all';
+  const sort = els.buySort?.value || 'newest';
 
   let rows = [...BUY];
 
@@ -451,8 +525,9 @@ function buyPhotoCount(r) {
 }
 
 function renderBuyTable() {
-  const rows = getFilteredBuy();
+  if (!els.buyBody) return;
 
+  const rows = getFilteredBuy();
   if (!rows.length) {
     els.buyBody.innerHTML = `<tr><td colspan="6" class="muted">Nic tu není.</td></tr>`;
     return;
@@ -498,15 +573,15 @@ async function fetchAsBlob(url) {
 }
 
 // ---------- Modal ----------
-let MODAL_REQ = null; // aktuální buy_request
-let MODAL_URLS = [];  // [{path, url}]
+let MODAL_REQ = null;
+let MODAL_URLS = [];
 
 function openModal() {
-  els.photoModal.classList.remove('hidden');
+  els.photoModal?.classList?.remove('hidden');
 }
 function closeModal() {
-  els.photoModal.classList.add('hidden');
-  els.photoGrid.innerHTML = '';
+  els.photoModal?.classList?.add('hidden');
+  if (els.photoGrid) els.photoGrid.innerHTML = '';
   setMsg(els.modalMsg, '', '');
   MODAL_REQ = null;
   MODAL_URLS = [];
@@ -519,16 +594,16 @@ async function showPhotosForRequest(reqId) {
 
   const paths = Array.isArray(req.photo_paths) ? req.photo_paths : [];
   if (!paths.length) {
-    els.photoMeta.textContent = `${req.email} • ${fmtDt(req.created_at)} • bez fotek`;
-    els.photoGrid.innerHTML = `<div class="muted">Žádné fotky.</div>`;
+    if (els.photoMeta) els.photoMeta.textContent = `${req.email} • ${fmtDt(req.created_at)} • bez fotek`;
+    if (els.photoGrid) els.photoGrid.innerHTML = `<div class="muted">Žádné fotky.</div>`;
     MODAL_REQ = req;
     MODAL_URLS = [];
     openModal();
     return;
   }
 
-  els.photoMeta.textContent = `${req.email} • ${fmtDt(req.created_at)} • fotek: ${paths.length}`;
-  els.photoGrid.innerHTML = `<div class="muted">Načítám fotky…</div>`;
+  if (els.photoMeta) els.photoMeta.textContent = `${req.email} • ${fmtDt(req.created_at)} • fotek: ${paths.length}`;
+  if (els.photoGrid) els.photoGrid.innerHTML = `<div class="muted">Načítám fotky…</div>`;
   openModal();
 
   try {
@@ -540,25 +615,27 @@ async function showPhotosForRequest(reqId) {
     MODAL_REQ = req;
     MODAL_URLS = out;
 
-    els.photoGrid.innerHTML = out.map(x => {
-      const name = baseNameFromPath(x.path);
-      return `
-        <div class="photo-card">
-          <a href="${x.url}" target="_blank" rel="noopener">
-            <img src="${x.url}" alt="">
-          </a>
-          <div class="cap">
-            <div class="name" title="${escapeHtml(name)}">${escapeHtml(name)}</div>
-            <a class="btn-small" href="${x.url}" download="${escapeHtml(name)}">Download</a>
+    if (els.photoGrid) {
+      els.photoGrid.innerHTML = out.map(x => {
+        const name = baseNameFromPath(x.path);
+        return `
+          <div class="photo-card">
+            <a href="${x.url}" target="_blank" rel="noopener">
+              <img src="${x.url}" alt="">
+            </a>
+            <div class="cap">
+              <div class="name" title="${escapeHtml(name)}">${escapeHtml(name)}</div>
+              <a class="btn-small" href="${x.url}" download="${escapeHtml(name)}">Download</a>
+            </div>
           </div>
-        </div>
-      `;
-    }).join('');
+        `;
+      }).join('');
+    }
 
   } catch (e) {
     console.error(e);
     setMsg(els.modalMsg, 'err', `Nešlo načíst fotky: ${e?.message || e}`);
-    els.photoGrid.innerHTML = '';
+    if (els.photoGrid) els.photoGrid.innerHTML = '';
   }
 }
 
@@ -574,8 +651,10 @@ async function downloadZipCurrent() {
   }
 
   setMsg(els.modalMsg, '', '');
-  els.downloadZipBtn.disabled = true;
-  els.downloadZipBtn.textContent = 'Baluju ZIP…';
+  if (els.downloadZipBtn) {
+    els.downloadZipBtn.disabled = true;
+    els.downloadZipBtn.textContent = 'Baluju ZIP…';
+  }
 
   try {
     const zip = new JSZip();
@@ -602,14 +681,16 @@ async function downloadZipCurrent() {
     console.error(e);
     setMsg(els.modalMsg, 'err', `ZIP fail: ${e?.message || e}`);
   } finally {
-    els.downloadZipBtn.disabled = false;
-    els.downloadZipBtn.textContent = 'Stáhnout vše (ZIP)';
+    if (els.downloadZipBtn) {
+      els.downloadZipBtn.disabled = false;
+      els.downloadZipBtn.textContent = 'Stáhnout vše (ZIP)';
+    }
   }
 }
 
 /* ===================== AUKCE (FIXED) ===================== */
 
-let AUC_EDIT_ID = null; // null = nová aukce
+let AUC_EDIT_ID = null;
 
 function toDatetimeLocalValue(ts) {
   if (!ts) return '';
@@ -626,7 +707,7 @@ function toDatetimeLocalValue(ts) {
 
 function fromDatetimeLocalValue(v) {
   if (!v) return null;
-  const d = new Date(v); // lokální čas
+  const d = new Date(v);
   if (Number.isNaN(d.getTime())) return null;
   return d.toISOString();
 }
@@ -672,13 +753,13 @@ async function loadAuctions() {
   });
 
   AUCTIONS = data || [];
-  els.countAuc.textContent = String(AUCTIONS.length);
+  if (els.countAuc) els.countAuc.textContent = String(AUCTIONS.length);
 }
 
 function getFilteredAuctions() {
-  const q = String(els.aucSearchInput.value || '').trim().toLowerCase();
-  const pub = els.aucPubFilter.value || 'all';
-  const sort = els.aucSort.value || 'ends_desc';
+  const q = String(els.aucSearchInput?.value || '').trim().toLowerCase();
+  const pub = els.aucPubFilter?.value || 'all';
+  const sort = els.aucSort?.value || 'ends_desc';
 
   let rows = [...AUCTIONS];
 
@@ -687,11 +768,7 @@ function getFilteredAuctions() {
 
   if (q) {
     rows = rows.filter(a => {
-      const hay = [
-        a.title,
-        a.description,
-        a.fb_url
-      ].filter(Boolean).join(' ').toLowerCase();
+      const hay = [a.title, a.description, a.fb_url].filter(Boolean).join(' ').toLowerCase();
       return hay.includes(q);
     });
   }
@@ -705,16 +782,16 @@ function getFilteredAuctions() {
     if (sort === 'ends_asc') return Aend - Bend;
     if (sort === 'newest') return Bcrt - Acrt;
     if (sort === 'oldest') return Acrt - Bcrt;
-    return Bend - Aend; // ends_desc
+    return Bend - Aend;
   });
 
-  // (volitelně) sekundární řazení podle created_at – nechávám v klidu
   return rows;
 }
 
 function renderAuctionsTable() {
-  const rows = getFilteredAuctions();
+  if (!els.aucBody) return;
 
+  const rows = getFilteredAuctions();
   if (!rows.length) {
     els.aucBody.innerHTML = `<tr><td colspan="7" class="muted">Nic tu není.</td></tr>`;
     return;
@@ -746,33 +823,35 @@ function renderAuctionsTable() {
 
 function clearAucEditor() {
   AUC_EDIT_ID = null;
-  els.aucTitle.value = '';
-  els.aucUrl.value = '';
-  els.aucDesc.value = '';
-  els.aucStarts.value = '';
-  els.aucEnds.value = '';
-  els.aucSortOrder.value = '';
-  els.aucPublished.checked = false;
-  els.aucPhotoGrid.innerHTML = '';
-  els.aucPhotos.value = '';
+  if (els.aucTitle) els.aucTitle.value = '';
+  if (els.aucUrl) els.aucUrl.value = '';
+  if (els.aucDesc) els.aucDesc.value = '';
+  if (els.aucStarts) els.aucStarts.value = '';
+  if (els.aucEnds) els.aucEnds.value = '';
+  if (els.aucSortOrder) els.aucSortOrder.value = '';
+  if (els.aucPublished) els.aucPublished.checked = false;
+  if (els.aucPhotoGrid) els.aucPhotoGrid.innerHTML = '';
+  if (els.aucPhotos) els.aucPhotos.value = '';
   setMsg(els.aucMsg, '', '');
 }
 
 function fillAucEditor(a) {
   AUC_EDIT_ID = a?.id || null;
-  els.aucTitle.value = a?.title || '';
-  els.aucUrl.value = a?.fb_url || '';
-  els.aucDesc.value = a?.description || '';
-  els.aucStarts.value = toDatetimeLocalValue(a?.starts_at);
-  els.aucEnds.value = toDatetimeLocalValue(a?.ends_at);
-  els.aucSortOrder.value = String(a?.sort_order ?? ''); // pokud sloupec nemáš, nevadí – editor si to drží (a SQL si může ignorovat)
-  els.aucPublished.checked = !!a?.published;
+  if (els.aucTitle) els.aucTitle.value = a?.title || '';
+  if (els.aucUrl) els.aucUrl.value = a?.fb_url || '';
+  if (els.aucDesc) els.aucDesc.value = a?.description || '';
+  if (els.aucStarts) els.aucStarts.value = toDatetimeLocalValue(a?.starts_at);
+  if (els.aucEnds) els.aucEnds.value = toDatetimeLocalValue(a?.ends_at);
+  if (els.aucSortOrder) els.aucSortOrder.value = String(a?.sort_order ?? '');
+  if (els.aucPublished) els.aucPublished.checked = !!a?.published;
 
   renderAucPhotoGrid(a);
   setMsg(els.aucMsg, '', '');
 }
 
 function renderAucPhotoGrid(a) {
+  if (!els.aucPhotoGrid) return;
+
   const imgs = Array.isArray(a?.auction_images) ? a.auction_images : [];
   if (!imgs.length) {
     els.aucPhotoGrid.innerHTML = `<div class="muted">Zatím žádné fotky. Nahraj je nahoře.</div>`;
@@ -797,17 +876,16 @@ function renderAucPhotoGrid(a) {
 async function saveAuction() {
   setMsg(els.aucMsg, '', '');
 
-  const title = String(els.aucTitle.value || '').trim();
-  let fb_url = String(els.aucUrl.value || '').trim();
-  const description = String(els.aucDesc.value || '').trim();
+  const title = String(els.aucTitle?.value || '').trim();
+  let fb_url = String(els.aucUrl?.value || '').trim();
+  const description = String(els.aucDesc?.value || '').trim();
 
-  const starts_at = fromDatetimeLocalValue(els.aucStarts.value);
-  const ends_at = fromDatetimeLocalValue(els.aucEnds.value);
+  const starts_at = fromDatetimeLocalValue(els.aucStarts?.value);
+  const ends_at = fromDatetimeLocalValue(els.aucEnds?.value);
 
-  const published = !!els.aucPublished.checked;
+  const published = !!els.aucPublished?.checked;
 
-  // sort_order držíme v UI, ale pokud ho DB nemá, necháš v SQL ignorovat
-  const sort_order_raw = String(els.aucSortOrder.value || '').trim();
+  const sort_order_raw = String(els.aucSortOrder?.value || '').trim();
   const sort_order = sort_order_raw === '' ? null : Number(sort_order_raw);
   if (sort_order_raw !== '' && !Number.isFinite(sort_order)) {
     setMsg(els.aucMsg, 'err', 'Řazení musí být číslo.');
@@ -828,11 +906,9 @@ async function saveAuction() {
     starts_at: starts_at || null,
     ends_at,
     published,
-    // pokud DB nemá sort_order, SQL si to může ignorovat (nebo si ho klidně přidej do DB)
     sort_order: sort_order ?? 0
   };
 
-  // CREATE
   if (!AUC_EDIT_ID) {
     const { data: newId, error } = await sb.rpc('admin_create_auction', { payload });
     if (error) throw error;
@@ -847,7 +923,6 @@ async function saveAuction() {
     return;
   }
 
-  // UPDATE
   const { error } = await sb.rpc('admin_update_auction', { p_id: AUC_EDIT_ID, payload });
   if (error) throw error;
 
@@ -910,14 +985,16 @@ async function uploadAuctionPhotos() {
     return;
   }
 
-  const files = Array.from(els.aucPhotos.files || []);
+  const files = Array.from(els.aucPhotos?.files || []);
   if (!files.length) {
     setMsg(els.aucMsg, 'err', 'Vyber fotky.');
     return;
   }
 
-  els.aucUploadBtn.disabled = true;
-  els.aucUploadBtn.textContent = 'Nahrávám…';
+  if (els.aucUploadBtn) {
+    els.aucUploadBtn.disabled = true;
+    els.aucUploadBtn.textContent = 'Nahrávám…';
+  }
 
   try {
     const cur = AUCTIONS.find(x => x.id === AUC_EDIT_ID);
@@ -944,7 +1021,6 @@ async function uploadAuctionPhotos() {
       });
     }
 
-    // ✅ DB insert přes admin RPC (RLS safe)
     const { error: insErr } = await sb.rpc('admin_add_auction_images', { p_rows: rows });
     if (insErr) throw insErr;
 
@@ -954,15 +1030,17 @@ async function uploadAuctionPhotos() {
     const updated = AUCTIONS.find(x => x.id === AUC_EDIT_ID);
     if (updated) fillAucEditor(updated);
 
-    els.aucPhotos.value = '';
+    if (els.aucPhotos) els.aucPhotos.value = '';
     setMsg(els.aucMsg, 'ok', `Nahráno: ${files.length} ✅`);
 
   } catch (e) {
     console.error(e);
     setMsg(els.aucMsg, 'err', `Upload fail: ${e?.message || e}`);
   } finally {
-    els.aucUploadBtn.disabled = false;
-    els.aucUploadBtn.textContent = 'Nahrát fotky';
+    if (els.aucUploadBtn) {
+      els.aucUploadBtn.disabled = false;
+      els.aucUploadBtn.textContent = 'Nahrát fotky';
+    }
   }
 }
 
@@ -970,11 +1048,9 @@ async function deleteAuctionImage(imgId, path) {
   const ok = confirm('Smazat fotku? (smaže z DB, a pokusí se smazat i ze Storage)');
   if (!ok) return;
 
-  // ✅ DB delete přes admin RPC (RLS safe)
   const { error: delErr } = await sb.rpc('admin_delete_auction_image', { p_image_id: imgId });
   if (delErr) throw delErr;
 
-  // best-effort storage remove
   try {
     await sb.storage.from(AUC_BUCKET).remove([path]);
   } catch (e) {
@@ -987,6 +1063,375 @@ async function deleteAuctionImage(imgId, path) {
   if (updated) fillAucEditor(updated);
 }
 
+/* ===================== NEWSLETTER (ADMIN) ===================== */
+
+function nlHasUI() {
+  return !!(els.tabNews && els.newsPane);
+}
+
+function nlSegmentFromUI() {
+  const noBuyDays = Number(els.nlNoBuyDays?.value || 0) || null;
+  const neverBought = !!els.nlNeverBought?.checked;
+  const ordersBucket = String(els.nlOrdersBucket?.value || '').trim() || null;
+
+  const totalSpentMin = Number(els.nlTotalSpentMin?.value || 0) || null;
+  const aovMin = Number(els.nlAovMin?.value || 0) || null;
+
+  const vipTop10 = !!els.nlVipTop10?.checked;
+  const hasPending = !!els.nlHasPending?.checked;
+  const excludeReturned = els.nlExcludeReturned ? !!els.nlExcludeReturned.checked : true;
+
+  const prefersLanguage = String(els.nlPrefLang?.value || '').trim() || null; // JP/EN/MIX
+  const pricePref = String(els.nlPricePref?.value || '').trim() || null; // cheap/expensive
+
+  const excludeUnsub = els.nlExcludeUnsub ? !!els.nlExcludeUnsub.checked : true;
+
+  return {
+    noBuyDays,
+    neverBought,
+    ordersBucket,
+    totalSpentMin,
+    aovMin,
+    vipTop10,
+    hasPending,
+    excludeReturned,
+    prefersLanguage,
+    pricePref,
+    excludeUnsub
+  };
+}
+
+function daysSince(ts) {
+  if (!ts) return null;
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return null;
+  return Math.floor((Date.now() - d.getTime()) / (24 * 60 * 60 * 1000));
+}
+
+function nlOrderBucketMatch(count, bucket) {
+  const c = Number(count || 0);
+  if (!bucket) return true;
+  if (bucket === '1') return c === 1;
+  if (bucket === '2-4') return c >= 2 && c <= 4;
+  if (bucket === '5+') return c >= 5;
+  return true;
+}
+
+function nlPricePrefMatch(avgItemPrice, pref) {
+  if (!pref) return true;
+  const p = Number(avgItemPrice || 0);
+  // 🔧 prah můžeš kdykoliv změnit, je to jen “levný vs dražší”
+  const TH = 120; // Kč
+  if (pref === 'cheap') return p > 0 && p < TH;
+  if (pref === 'expensive') return p >= TH;
+  return true;
+}
+
+function nlBuildPreviewList() {
+  const seg = nlSegmentFromUI();
+
+  const subsMap = new Map();
+  for (const s of NL_SUBSCRIBERS) {
+    const email = String(s.email || '').toLowerCase().trim();
+    if (!email) continue;
+    subsMap.set(email, s);
+  }
+
+  let rows = [...NL_METRICS];
+
+  // exclude unsubscribed (default ON)
+  if (seg.excludeUnsub) {
+    rows = rows.filter(m => {
+      const s = subsMap.get(String(m.email || '').toLowerCase().trim());
+      // pokud subscriber neexistuje, necháme to projít (protože může být customer bez subscribe),
+      // ale ty pak stejně budeš posílat jen subscribed – to uděláme v dalším kroku.
+      if (!s) return true;
+      return !s.is_unsubscribed;
+    });
+  }
+
+  // never bought
+  if (seg.neverBought) {
+    rows = rows.filter(m => Number(m.orders_count || 0) === 0);
+  }
+
+  // no buy X days (počítáme z last_order_at, fallback last_any_order_at)
+  if (seg.noBuyDays) {
+    rows = rows.filter(m => {
+      const last = m.last_order_at || m.last_any_order_at;
+      const d = daysSince(last);
+      if (d === null) return true; // nikdy? tak projde
+      return d >= seg.noBuyDays;
+    });
+  }
+
+  // orders bucket
+  if (seg.ordersBucket) {
+    rows = rows.filter(m => nlOrderBucketMatch(m.orders_count, seg.ordersBucket));
+  }
+
+  // total spent min
+  if (seg.totalSpentMin !== null) {
+    rows = rows.filter(m => Number(m.total_spent || 0) >= seg.totalSpentMin);
+  }
+
+  // AOV min
+  if (seg.aovMin !== null) {
+    rows = rows.filter(m => Number(m.aov || 0) >= seg.aovMin);
+  }
+
+  // vip
+  if (seg.vipTop10) {
+    rows = rows.filter(m => !!m.is_vip_top10);
+  }
+
+  // has pending
+  if (seg.hasPending) {
+    rows = rows.filter(m => !!m.has_pending);
+  }
+
+  // exclude returned
+  if (seg.excludeReturned) {
+    rows = rows.filter(m => !m.has_returned);
+  }
+
+  // prefers language
+  if (seg.prefersLanguage) {
+    rows = rows.filter(m => String(m.prefers_language || '').toUpperCase() === seg.prefersLanguage.toUpperCase());
+  }
+
+  // cheap/expensive preference by avg_item_price
+  if (seg.pricePref) {
+    rows = rows.filter(m => nlPricePrefMatch(m.avg_item_price, seg.pricePref));
+  }
+
+  // řazení: nejvíc spent desc, pak nejnovější order desc
+  rows.sort((a,b) => {
+    const A = Number(a.total_spent || 0);
+    const B = Number(b.total_spent || 0);
+    if (B !== A) return B - A;
+    const at = new Date(a.last_order_at || a.last_any_order_at || 0).getTime();
+    const bt = new Date(b.last_order_at || b.last_any_order_at || 0).getTime();
+    return bt - at;
+  });
+
+  return { seg, rows, subsMap };
+}
+
+function nlRenderPreview() {
+  if (!nlHasUI()) return;
+
+  const { rows, subsMap } = nlBuildPreviewList();
+
+  // count
+  if (els.newsCountAll) els.newsCountAll.textContent = String(rows.length);
+
+  // “subscribed count” odhad (kolik z preview je reálně v newsletter_subscribers a není unsub)
+  if (els.newsCountSubs) {
+    const subs = rows.filter(r => {
+      const s = subsMap.get(String(r.email || '').toLowerCase().trim());
+      return s && !s.is_unsubscribed;
+    }).length;
+    els.newsCountSubs.textContent = String(subs);
+  }
+
+  if (!els.nlPreviewList) return;
+
+  if (!rows.length) {
+    els.nlPreviewList.innerHTML = `<div class="muted">Nic neodpovídá filtrům.</div>`;
+    return;
+  }
+
+  // show max 200 v UI (aby se to nezadusilo), export může dát všechny
+  const show = rows.slice(0, 200);
+
+  els.nlPreviewList.innerHTML = `
+    <div class="muted" style="margin-bottom:10px;">
+      Zobrazuju ${show.length}${rows.length > show.length ? ` z ${rows.length}` : ''}.
+    </div>
+    <div class="nl-list">
+      ${show.map(m => {
+        const email = escapeHtml(m.email || '');
+        const oc = Number(m.orders_count || 0);
+        const spent = fmtKc(m.total_spent || 0);
+        const aov = fmtKc(m.aov || 0);
+        const last = fmtDt(m.last_order_at || m.last_any_order_at);
+        const vip = m.is_vip_top10 ? '⭐ VIP' : '';
+        const pend = m.has_pending ? '⏳ pending' : '';
+        const ret = m.has_returned ? '⚠ returned' : '';
+        const lang = m.prefers_language ? `🌐 ${escapeHtml(m.prefers_language)}` : '';
+        const avgp = m.avg_item_price ? `💸 avg item ${fmtKc(m.avg_item_price)}` : '';
+        return `
+          <div class="nl-row">
+            <div class="nl-email"><strong>${email}</strong></div>
+            <div class="nl-meta muted">
+              ${vip} ${pend} ${ret} ${lang} ${avgp}<br>
+              orders: <strong>${oc}</strong> • spent: <strong>${spent}</strong> • AOV: <strong>${aov}</strong> • last: ${last}
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+async function nlLoadMetrics() {
+  // ✅ IMPORTANT: metrics jdou přes RPC (protože view je revoke a/nebo security definer)
+  const { data, error } = await sb.rpc('admin_newsletter_customer_metrics');
+  if (error) throw error;
+  NL_METRICS = Array.isArray(data) ? data : [];
+}
+
+async function nlLoadSubscribers() {
+  const { data, error } = await sb
+    .from('newsletter_subscribers')
+    .select('id,email,is_unsubscribed,unsubscribed_at,subscribed_at,source')
+    .order('created_at', { ascending: false })
+    .limit(5000);
+  if (error) throw error;
+  NL_SUBSCRIBERS = data || [];
+}
+
+async function nlLoadCampaigns() {
+  const { data, error } = await sb
+    .from('newsletter_campaigns')
+    .select('id,created_at,name,subject,preheader,status,scheduled_for,sent_at,segment_json')
+    .order('created_at', { ascending: false })
+    .limit(200);
+  if (error) throw error;
+  NL_CAMPAIGNS = data || [];
+}
+
+function nlRenderCampaignsTable() {
+  if (!els.nlCampsBody) return;
+
+  if (!NL_CAMPAIGNS.length) {
+    els.nlCampsBody.innerHTML = `<tr><td colspan="6" class="muted">Zatím žádné kampaně.</td></tr>`;
+    return;
+  }
+
+  els.nlCampsBody.innerHTML = NL_CAMPAIGNS.map(c => {
+    return `
+      <tr>
+        <td><strong>${escapeHtml(c.name || '—')}</strong><br><span class="muted">${fmtDt(c.created_at)}</span></td>
+        <td>${escapeHtml(c.subject || '')}</td>
+        <td>${escapeHtml(c.status || 'draft')}</td>
+        <td>${c.scheduled_for ? fmtDt(c.scheduled_for) : '—'}</td>
+        <td>${c.sent_at ? fmtDt(c.sent_at) : '—'}</td>
+        <td>
+          <button class="btn-small" data-nl-camp="load" data-nl-id="${c.id}">Načíst</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function nlFillCampaignEditor(c) {
+  if (!c) return;
+  if (els.nlCampName) els.nlCampName.value = c.name || '';
+  if (els.nlSubject) els.nlSubject.value = c.subject || '';
+  if (els.nlPreheader) els.nlPreheader.value = c.preheader || '';
+  // html nečteme v listu (šetří), načteme při load detail (viz níž)
+}
+
+async function nlLoadCampaignDetail(id) {
+  const { data, error } = await sb
+    .from('newsletter_campaigns')
+    .select('id,name,subject,preheader,html,status,segment_json,created_at')
+    .eq('id', id)
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+function nlEmailsFromPreview({ onlySubscribed = false } = {}) {
+  const { rows, subsMap } = nlBuildPreviewList();
+
+  let emails = rows.map(r => String(r.email || '').toLowerCase().trim()).filter(Boolean);
+
+  // dedupe
+  emails = Array.from(new Set(emails));
+
+  if (onlySubscribed) {
+    emails = emails.filter(e => {
+      const s = subsMap.get(e);
+      return s && !s.is_unsubscribed;
+    });
+  }
+
+  return emails;
+}
+
+function nlExportEmailsCsv() {
+  if (!nlHasUI()) return;
+
+  // ⚡ default: export jen subscribed & not unsubscribed (protože newsletter reálně)
+  const emails = nlEmailsFromPreview({ onlySubscribed: true });
+
+  if (!emails.length) {
+    alert('Nic k exportu (po odfiltrování unsubscribed).');
+    return;
+  }
+
+  const csv = "\uFEFFemail\n" + emails.map(e => `"${e.replaceAll('"','""')}"`).join("\n");
+  const blob = new Blob([csv], { type:"text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `newsletter_recipients_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+
+async function nlSaveCampaignDraft() {
+  if (!nlHasUI()) return;
+
+  const name = String(els.nlCampName?.value || '').trim();
+  const subject = String(els.nlSubject?.value || '').trim();
+  const preheader = String(els.nlPreheader?.value || '').trim();
+  const html = String(els.nlHtml?.value || '').trim();
+
+  if (!subject || !html) {
+    setMsg(els.newsMsg, 'err', 'Chybí subject nebo HTML.');
+    return;
+  }
+
+  const segment_json = nlSegmentFromUI();
+
+  const payload = {
+    name: name || '',
+    subject,
+    preheader: preheader || '',
+    html,
+    status: 'draft',
+    segment_json
+  };
+
+  const { error } = await sb.from('newsletter_campaigns').insert(payload);
+  if (error) throw error;
+
+  await nlLoadCampaigns();
+  nlRenderCampaignsTable();
+  setMsg(els.newsMsg, 'ok', 'Draft uložen ✅');
+}
+
+async function nlReloadAll() {
+  if (!nlHasUI()) return;
+
+  setMsg(els.newsMsg, '', 'Načítám newsletter data…');
+
+  try {
+    await Promise.all([nlLoadMetrics(), nlLoadSubscribers(), nlLoadCampaigns()]);
+    nlRenderPreview();
+    nlRenderCampaignsTable();
+    setMsg(els.newsMsg, 'ok', 'Newsletter ready ✅');
+    setTimeout(() => setMsg(els.newsMsg, '', ''), 900);
+  } catch (e) {
+    console.error(e);
+    setMsg(els.newsMsg, 'err', e?.message || String(e));
+  }
+}
+
 /* ===================== AUTH FLOW ===================== */
 async function refreshAuthUI() {
   const { data: { session } } = await sb.auth.getSession();
@@ -997,7 +1442,7 @@ async function refreshAuthUI() {
     return;
   }
 
-  els.whoami.textContent = session.user?.email || session.user?.id || '—';
+  if (els.whoami) els.whoami.textContent = session.user?.email || session.user?.id || '—';
 
   try {
     const ok = await isAdmin();
@@ -1014,6 +1459,11 @@ async function refreshAuthUI() {
     renderBuyTable();
     renderAuctionsTable();
 
+    // newsletter (optional)
+    if (nlHasUI()) {
+      await nlReloadAll();
+    }
+
   } catch (e) {
     console.error(e);
     showView("login");
@@ -1024,25 +1474,32 @@ async function refreshAuthUI() {
 /* ===================== EVENTS ===================== */
 document.addEventListener("DOMContentLoaded", async () => {
   // Tabs
-  els.tabOrders.addEventListener('click', () => setTab('orders'));
-  els.tabBuy.addEventListener('click', () => setTab('buy'));
-  els.tabAuc.addEventListener('click', () => setTab('auc'));
+  els.tabOrders?.addEventListener('click', () => setTab('orders'));
+  els.tabBuy?.addEventListener('click', () => setTab('buy'));
+  els.tabAuc?.addEventListener('click', () => setTab('auc'));
+  els.tabNews?.addEventListener('click', () => {
+    setTab('news');
+    // render preview “just in case”
+    if (nlHasUI()) nlRenderPreview();
+  });
 
   // Login
-  els.loginForm.addEventListener("submit", async (e) => {
+  els.loginForm?.addEventListener("submit", async (e) => {
     e.preventDefault();
     setMsg(els.loginMsg, '', '');
 
-    const email = String(els.loginEmail.value || '').trim();
-    const password = String(els.loginPassword.value || '');
+    const email = String(els.loginEmail?.value || '').trim();
+    const password = String(els.loginPassword?.value || '');
 
     if (!email || !password) {
       setMsg(els.loginMsg, 'err', 'Vyplň email i heslo.');
       return;
     }
 
-    els.loginBtn.disabled = true;
-    els.loginBtn.textContent = 'Přihlašuji…';
+    if (els.loginBtn) {
+      els.loginBtn.disabled = true;
+      els.loginBtn.textContent = 'Přihlašuji…';
+    }
 
     try {
       const { error } = await sb.auth.signInWithPassword({ email, password });
@@ -1053,8 +1510,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       console.error(err);
       setMsg(els.loginMsg, 'err', `Nešlo přihlásit: ${err?.message || err}`);
     } finally {
-      els.loginBtn.disabled = false;
-      els.loginBtn.textContent = 'Přihlásit';
+      if (els.loginBtn) {
+        els.loginBtn.disabled = false;
+        els.loginBtn.textContent = 'Přihlásit';
+      }
     }
   });
 
@@ -1063,21 +1522,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     await sb.auth.signOut();
     showView("login");
   }
-  els.logoutBtn.addEventListener("click", logout);
-  els.deniedLogoutBtn.addEventListener("click", logout);
+  els.logoutBtn?.addEventListener("click", logout);
+  els.deniedLogoutBtn?.addEventListener("click", logout);
 
   // Reload
-  els.refreshBtn.addEventListener("click", async () => {
+  els.refreshBtn?.addEventListener("click", async () => {
     try {
       setMsg(els.dashMsg, '', '');
       await Promise.all([loadOrders(), loadBuyRequests(), loadAuctions()]);
       renderOrdersTable();
       renderBuyTable();
       renderAuctionsTable();
+
+      if (nlHasUI()) await nlReloadAll();
+
       setMsg(els.dashMsg, 'ok', 'Reload ✅');
       setTimeout(() => setMsg(els.dashMsg, '', ''), 900);
 
-      // refresh editor if editing
       if (AUC_EDIT_ID) {
         const updated = AUCTIONS.find(x => x.id === AUC_EDIT_ID);
         if (updated) fillAucEditor(updated);
@@ -1089,15 +1550,15 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   // Orders filters
-  els.searchInput.addEventListener('input', renderOrdersTable);
-  els.statusFilter.addEventListener('change', renderOrdersTable);
-  els.paymentFilter.addEventListener('change', renderOrdersTable);
+  els.searchInput?.addEventListener('input', renderOrdersTable);
+  els.statusFilter?.addEventListener('change', renderOrdersTable);
+  els.paymentFilter?.addEventListener('change', renderOrdersTable);
 
   // CSV
-  els.exportCsvBtn.addEventListener('click', exportCsv);
+  els.exportCsvBtn?.addEventListener('click', exportCsv);
 
-  // Orders action buttons (delegation)
-  els.ordersBody.addEventListener("click", async (e) => {
+  // Orders action buttons
+  els.ordersBody?.addEventListener("click", async (e) => {
     const btn = e.target.closest("button[data-act]");
     if (!btn) return;
 
@@ -1113,12 +1574,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   // Buy filters
-  els.buySearchInput.addEventListener('input', renderBuyTable);
-  els.buyTypeFilter.addEventListener('change', renderBuyTable);
-  els.buySort.addEventListener('change', renderBuyTable);
+  els.buySearchInput?.addEventListener('input', renderBuyTable);
+  els.buyTypeFilter?.addEventListener('change', renderBuyTable);
+  els.buySort?.addEventListener('change', renderBuyTable);
 
-  // Buy actions (delegation)
-  els.buyBody.addEventListener('click', async (e) => {
+  // Buy actions
+  els.buyBody?.addEventListener('click', async (e) => {
     const btn = e.target.closest('button[data-buy-act]');
     if (!btn) return;
     const act = btn.getAttribute('data-buy-act');
@@ -1138,29 +1599,29 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   // Modal events
-  els.closeModalBtn.addEventListener('click', closeModal);
-  els.photoModal.addEventListener('click', (e) => {
+  els.closeModalBtn?.addEventListener('click', closeModal);
+  els.photoModal?.addEventListener('click', (e) => {
     if (e.target === els.photoModal) closeModal();
   });
-  els.downloadZipBtn.addEventListener('click', downloadZipCurrent);
+  els.downloadZipBtn?.addEventListener('click', downloadZipCurrent);
 
   // ===================== AUKCE EVENTS =====================
-  els.aucSearchInput.addEventListener('input', renderAuctionsTable);
-  els.aucPubFilter.addEventListener('change', renderAuctionsTable);
-  els.aucSort.addEventListener('change', renderAuctionsTable);
+  els.aucSearchInput?.addEventListener('input', renderAuctionsTable);
+  els.aucPubFilter?.addEventListener('change', renderAuctionsTable);
+  els.aucSort?.addEventListener('change', renderAuctionsTable);
 
-  els.aucNewBtn.addEventListener('click', () => {
+  els.aucNewBtn?.addEventListener('click', () => {
     clearAucEditor();
     setTab('auc');
     setMsg(els.aucMsg, '', '');
   });
 
-  els.aucClearBtn.addEventListener('click', () => {
+  els.aucClearBtn?.addEventListener('click', () => {
     clearAucEditor();
     setMsg(els.aucMsg, '', '');
   });
 
-  els.aucForm.addEventListener('submit', async (e) => {
+  els.aucForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
     try {
       await saveAuction();
@@ -1170,7 +1631,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   });
 
-  els.aucUploadBtn.addEventListener('click', async () => {
+  els.aucUploadBtn?.addEventListener('click', async () => {
     try {
       await uploadAuctionPhotos();
     } catch (err) {
@@ -1179,8 +1640,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   });
 
-  // aukce table actions (delegation)
-  els.aucBody.addEventListener('click', async (e) => {
+  els.aucBody?.addEventListener('click', async (e) => {
     const btn = e.target.closest('[data-auc-act]');
     if (!btn) return;
 
@@ -1198,8 +1658,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   });
 
-  // aukce photo actions (delegation)
-  els.aucPhotoGrid.addEventListener('click', async (e) => {
+  els.aucPhotoGrid?.addEventListener('click', async (e) => {
     const btn = e.target.closest('[data-aucimg-act]');
     if (!btn) return;
 
@@ -1214,6 +1673,55 @@ document.addEventListener("DOMContentLoaded", async () => {
       alert('Chyba: ' + (err?.message || err));
     }
   });
+
+  // ===================== NEWSLETTER EVENTS =====================
+  if (nlHasUI()) {
+    const rerender = () => nlRenderPreview();
+
+    els.nlNoBuyDays?.addEventListener('change', rerender);
+    els.nlNeverBought?.addEventListener('change', rerender);
+    els.nlOrdersBucket?.addEventListener('change', rerender);
+    els.nlTotalSpentMin?.addEventListener('input', rerender);
+    els.nlAovMin?.addEventListener('input', rerender);
+    els.nlVipTop10?.addEventListener('change', rerender);
+    els.nlHasPending?.addEventListener('change', rerender);
+    els.nlExcludeReturned?.addEventListener('change', rerender);
+    els.nlPrefLang?.addEventListener('change', rerender);
+    els.nlPricePref?.addEventListener('change', rerender);
+    els.nlExcludeUnsub?.addEventListener('change', rerender);
+
+    els.nlRefreshBtn?.addEventListener('click', nlReloadAll);
+    els.nlExportBtn?.addEventListener('click', nlExportEmailsCsv);
+
+    els.nlSaveCampaignBtn?.addEventListener('click', async () => {
+      try {
+        setMsg(els.newsMsg, '', '');
+        await nlSaveCampaignDraft();
+      } catch (e) {
+        console.error(e);
+        setMsg(els.newsMsg, 'err', e?.message || String(e));
+      }
+    });
+
+    els.nlCampsBody?.addEventListener('click', async (e) => {
+      const btn = e.target.closest('[data-nl-camp="load"]');
+      if (!btn) return;
+      const id = btn.getAttribute('data-nl-id');
+      if (!id) return;
+
+      try {
+        const c = await nlLoadCampaignDetail(id);
+        nlFillCampaignEditor(c);
+        if (els.nlHtml) els.nlHtml.value = c.html || '';
+        // volitelně: můžeš i nacpat segment_json do UI (zatím neřeším auto-apply, je to pain)
+        setMsg(els.newsMsg, 'ok', 'Kampaň načtena ✅');
+        setTimeout(() => setMsg(els.newsMsg, '', ''), 900);
+      } catch (err) {
+        console.error(err);
+        setMsg(els.newsMsg, 'err', err?.message || String(err));
+      }
+    });
+  }
 
   // keep UI updated if session changes
   sb.auth.onAuthStateChange(() => {
