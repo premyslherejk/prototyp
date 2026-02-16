@@ -2,7 +2,8 @@
 const { createClient } = supabase;
 
 const SUPABASE_URL = 'https://hwjbfrhbgeczukcjkmca.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh3amJmcmhiZ2VjenVrY2prbWNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk0NDU5MjQsImV4cCI6MjA4NTAyMTkyNH0.BlgIov7kFq2EUW17hLs6o1YujL1i9elD7wILJP6h-lQ';
+const SUPABASE_ANON_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmJmcmhiZ2VjenVrY2prbWNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk0NDU5MjQsImV4cCI6MjA4NTAyMTkyNH0.BlgIov7kFq2EUW17hLs6o1YujL1i9elD7wILJP6h-lQ';
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -64,14 +65,15 @@ function grabEls() {
   els.terms = document.getElementById('termsAccepted');
   els.gdpr = document.getElementById('gdprAccepted');
 
-  // desktop summary (původní id)
+  // ✅ newsletter checkbox
+  els.newsletterOptIn = document.getElementById('newsletterOptIn');
+
   els.cartMini = document.getElementById('cartMini');
   els.sumSubtotal = document.getElementById('sumSubtotal');
   els.sumShip = document.getElementById('sumShip');
   els.sumTotal = document.getElementById('sumTotal');
   els.reserveHint = document.getElementById('reserveHint');
 
-  // inline summary (mobile id)
   els.cartMiniInline = document.getElementById('cartMiniInline');
   els.sumSubtotalInline = document.getElementById('sumSubtotalInline');
   els.sumShipInline = document.getElementById('sumShipInline');
@@ -93,7 +95,7 @@ function getSelected(name) {
   return el ? el.value : null;
 }
 
-// Jen Zásilkovna + dobírka fee
+// ===================== FEES =====================
 function calcFees(payment) {
   const ship = 89;
   const cod = payment === 'cod' ? 35 : 0;
@@ -101,24 +103,18 @@ function calcFees(payment) {
 }
 
 function formatKc(n) {
-  const x = Number(n || 0);
-  return `${x} Kč`;
+  return `${Number(n || 0)} Kč`;
 }
 
-function escapeHtml(s) {
-  return String(s ?? '')
-    .replaceAll('&','&amp;')
-    .replaceAll('<','&lt;')
-    .replaceAll('>','&gt;')
-    .replaceAll('"','&quot;')
-    .replaceAll("'","&#039;");
-}
-
-// ===================== PICKUP (sessionStorage) =====================
+// ===================== PICKUP =====================
 function readPickup() {
   const raw = sessionStorage.getItem(PICKUP_SS_KEY);
   if (!raw) return null;
-  try { return JSON.parse(raw); } catch { return null; }
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
 }
 
 function savePickup(point) {
@@ -138,37 +134,16 @@ function renderPickup() {
     return;
   }
 
-  const name = p?.name || p?.place || 'Výdejní místo';
-  const city = p?.city || '';
-  const street = p?.street || '';
-  const id = p?.id || p?.pickupPointId || p?.carrierPickupPointId || '';
-
   els.pickSelected.innerHTML = `
     <div class="pickup-line">
-      <strong>${escapeHtml(name)}</strong><br>
-      <span class="muted">${escapeHtml([street, city].filter(Boolean).join(', '))}</span>
+      <strong>${p.name}</strong><br>
+      <span class="muted">${[p.street, p.city].filter(Boolean).join(', ')}</span>
     </div>
-    <div class="pickup-meta muted">ID: ${escapeHtml(String(id || '—'))}</div>
+    <div class="pickup-meta muted">ID: ${p.id}</div>
   `;
 }
 
 function openPacketaWidget() {
-  console.log('Packeta click:', {
-    hasPacketa: !!window.Packeta,
-    hasPick: !!window.Packeta?.Widget?.pick,
-    apiKeyLen: (PACKETA_API_KEY || '').length
-  });
-
-  if (!PACKETA_API_KEY) {
-    setMsg('err', 'Chybí Packeta API key (PACKETA_API_KEY).');
-    return;
-  }
-
-  if (!window.Packeta?.Widget?.pick) {
-    setMsg('err', 'Packeta widget se nenačetl. Zkontroluj, že v <head> je library.js.');
-    return;
-  }
-
   const onPick = (point) => {
     if (!point) return;
     savePickup(point);
@@ -179,239 +154,111 @@ function openPacketaWidget() {
   window.Packeta.Widget.pick(PACKETA_API_KEY, onPick, PACKETA_OPTIONS);
 }
 
-// ===================== SUMMARY SYNC (desktop -> inline mobile) =====================
-function syncInlineSummaryFromDesktop() {
-  // Pokud inline verze v HTML není, nic nedělej (failsafe)
-  if (!els.cartMiniInline || !els.sumSubtotalInline || !els.sumShipInline || !els.sumTotalInline || !els.reserveHintInline) return;
-
-  // Překopíruj hotový render z desktopu
-  els.cartMiniInline.innerHTML = els.cartMini?.innerHTML ?? '';
-  els.sumSubtotalInline.textContent = els.sumSubtotal?.textContent ?? '0 Kč';
-  els.sumShipInline.textContent = els.sumShip?.textContent ?? '0 Kč';
-  els.sumTotalInline.textContent = els.sumTotal?.textContent ?? '0 Kč';
-  els.reserveHintInline.textContent = els.reserveHint?.textContent ?? '';
-}
-
-function setEmptySummary() {
-  const emptyHtml = `<p style="opacity:.7">Košík je prázdný.</p>`;
-
-  if (els.cartMini) els.cartMini.innerHTML = emptyHtml;
-  if (els.sumSubtotal) els.sumSubtotal.textContent = formatKc(0);
-  if (els.sumShip) els.sumShip.textContent = formatKc(0);
-  if (els.sumTotal) els.sumTotal.textContent = formatKc(0);
-  if (els.reserveHint) els.reserveHint.textContent = '';
-
-  syncInlineSummaryFromDesktop();
-}
-
-// ===================== MINI SUMMARY =====================
+// ===================== SUMMARY =====================
 function renderMiniSummary() {
   const cart = readCart();
-
-  if (!cart.length) {
-    setEmptySummary();
-    return;
-  }
+  if (!cart.length) return;
 
   const payment = getSelected('payment') || 'bank';
   const fees = calcFees(payment);
 
   let subtotal = 0;
-  for (const it of cart) {
-    const price = Number(it?.price ?? it?.card?.price ?? 0);
-    const qty = Number(it?.qty ?? 1) || 1;
-    subtotal += price * qty;
-  }
+  cart.forEach(it => {
+    subtotal += Number(it.price || 0) * (Number(it.qty) || 1);
+  });
 
-  const itemsHtml = cart.slice(0, 12).map(it => {
-    const name = it?.name || it?.card?.name || 'Karta';
-    const img = it?.image || it?.image_url || it?.imageUrl || it?.card?.image_url || '';
-    const price = Number(it?.price ?? it?.card?.price ?? 0);
-    return `
-      <div class="mini-item">
-        <img src="${img}" alt="">
-        <div>
-          <strong>${escapeHtml(name)}</strong>
-          <div class="muted">${price ? formatKc(price) : ''}</div>
-        </div>
-        <div style="opacity:.75;font-weight:900;">×${Number(it?.qty ?? 1) || 1}</div>
-      </div>
-    `;
-  }).join('');
-
-  if (els.cartMini) {
-    els.cartMini.innerHTML = itemsHtml + (cart.length > 12 ? `<p class="muted">+ další položky…</p>` : '');
-  }
-
-  if (els.sumSubtotal) els.sumSubtotal.textContent = formatKc(subtotal);
-  if (els.sumShip) els.sumShip.textContent = formatKc(fees.extra);
-  if (els.sumTotal) els.sumTotal.textContent = formatKc(subtotal + fees.extra);
-
-  if (els.reserveHint) {
-    els.reserveHint.textContent =
-      payment === 'bank'
-        ? 'Rezervace na 24 hodin po vytvoření objednávky.'
-        : 'Dobírka: rezervace bez limitu, stav se uzavírá ručně.';
-  }
-
-  // ✅ zrcadli do inline shrnutí na mobil
-  syncInlineSummaryFromDesktop();
+  els.sumSubtotal.textContent = formatKc(subtotal);
+  els.sumShip.textContent = formatKc(fees.extra);
+  els.sumTotal.textContent = formatKc(subtotal + fees.extra);
 }
 
-// ===================== SUBMIT =====================
+// ===================== VALIDATION =====================
 function validateForm() {
-  const required = [
-    ['Jméno', els.firstName.value],
-    ['Příjmení', els.lastName.value],
-    ['E-mail', els.email.value],
-    ['Ulice', els.street.value],
-    ['Město', els.city.value],
-    ['PSČ', els.zip.value],
-  ];
-
-  for (const [label, val] of required) {
-    if (!String(val || '').trim()) return `Chybí: ${label}`;
-  }
-
-  if (!els.terms.checked) return 'Musíš souhlasit s obchodními podmínkami.';
-  if (!els.gdpr.checked) return 'Musíš souhlasit se zpracováním osobních údajů.';
-
-  const pickup = readPickup();
-  if (!pickup) return 'Vyber výdejní místo (Zásilkovna).';
-
-  const cart = normalizeCartItems(readCart());
-  if (!cart.length) return 'Košík je prázdný.';
-
+  if (!els.email.value.trim()) return 'Chybí email.';
+  if (!els.terms.checked) return 'Musíš souhlasit s podmínkami.';
+  if (!els.gdpr.checked) return 'Musíš souhlasit s GDPR.';
+  if (!readPickup()) return 'Vyber výdejní místo.';
+  if (!normalizeCartItems(readCart()).length) return 'Košík je prázdný.';
   return null;
 }
 
+// ===================== ORDER =====================
 async function createOrder(payload) {
   const { data, error } = await sb.rpc('create_order_and_reserve', { payload });
   if (error) throw error;
   return data;
 }
 
-function buildPayload() {
-  const cart = normalizeCartItems(readCart());
-  const payment_method = getSelected('payment') || 'bank';
-  const pickup = readPickup();
+// ===================== NEWSLETTER SUBSCRIBE (NEW) =====================
+function tryNewsletterSubscribe(email) {
+  const optIn = els.newsletterOptIn?.checked;
+  if (!optIn) return;
 
-  const pickupId =
-    pickup?.id ||
-    pickup?.carrierPickupPointId ||
-    pickup?.pickupPointId ||
-    null;
+  const cleanEmail = String(email || '').trim().toLowerCase();
+  if (!cleanEmail) return;
 
-  const pickupName =
-    pickup?.name ||
-    pickup?.place ||
-    pickup?.formatedValue ||
-    null;
-
-  return {
-    email: String(els.email.value || '').trim(),
-    phone: String(els.phone.value || '').trim() || null,
-    first_name: String(els.firstName.value || '').trim(),
-    last_name: String(els.lastName.value || '').trim(),
-    street: String(els.street.value || '').trim(),
-    city: String(els.city.value || '').trim(),
-    zip: String(els.zip.value || '').trim(),
-    country: String(els.country.value || 'CZ').trim(),
-
-    delivery_method: 'zasilkovna',
-    delivery_point_id: pickupId,
-    delivery_point_name: pickupName,
-
-    payment_method,
-    note: String(els.note.value || '').trim() || null,
-
-    terms_accepted: true,
-    gdpr_accepted: true,
-
-    items: cart
-  };
+  // fire-and-forget, nikdy neblokuje checkout
+  sb.rpc('newsletter_subscribe', {
+    p_email: cleanEmail,
+    p_source: 'checkout'
+  }).then(({ error }) => {
+    if (error) console.warn("newsletter_subscribe:", error.message);
+  });
 }
 
-function lockUI(locked) {
-  if (!els.btn) return;
-  els.btn.disabled = !!locked;
-  els.btn.textContent = locked ? 'Vytvářím objednávku…' : 'Objednat';
-}
-
-function saveLastOrder(resp, payload) {
-  const info = {
-    created_at: new Date().toISOString(),
-    order_id: resp?.order_id,
-    order_number: resp?.order_number,
-    reserved_until: resp?.reserved_until,
-    subtotal: resp?.subtotal,
-    shipping: resp?.shipping,
-    cod_fee: resp?.cod_fee,
-    total: resp?.total,
-    payment_method: payload?.payment_method,
-    delivery_method: payload?.delivery_method,
-    delivery_point_id: payload?.delivery_point_id,
-    delivery_point_name: payload?.delivery_point_name,
-    email: payload?.email
-  };
-  sessionStorage.setItem('last_order', JSON.stringify(info));
-}
-
-function clearCart() {
-  localStorage.removeItem('cart');
-}
-
-function goThankYou(orderId, orderNumber) {
-  const p = new URLSearchParams();
-  if (orderId) p.set('order_id', orderId);
-  if (orderNumber) p.set('order_number', orderNumber);
-  location.href = `dekuji.html?${p.toString()}`;
-}
-
+// ===================== SUBMIT =====================
 document.addEventListener('DOMContentLoaded', () => {
   grabEls();
-
   renderPickup();
-
-  // click na Packeta button
-  els.pickBtn?.addEventListener('click', () => {
-    setMsg('', '');
-    openPacketaWidget();
-  });
-
-  // summary
   renderMiniSummary();
-  document.getElementById('paymentChoices')?.addEventListener('change', renderMiniSummary);
 
-  els.form?.addEventListener('submit', async (e) => {
+  els.pickBtn.addEventListener('click', openPacketaWidget);
+
+  els.form.addEventListener('submit', async (e) => {
     e.preventDefault();
     setMsg('', '');
 
     const err = validateForm();
-    if (err) {
-      setMsg('err', err);
-      return;
-    }
+    if (err) return setMsg('err', err);
 
-    const payload = buildPayload();
+    const payload = {
+      email: els.email.value.trim(),
+      phone: els.phone.value.trim() || null,
+      first_name: els.firstName.value.trim(),
+      last_name: els.lastName.value.trim(),
+      street: els.street.value.trim(),
+      city: els.city.value.trim(),
+      zip: els.zip.value.trim(),
+
+      delivery_method: 'zasilkovna',
+      payment_method: getSelected('payment') || 'bank',
+
+      note: els.note.value.trim() || null,
+      items: normalizeCartItems(readCart())
+    };
 
     try {
-      lockUI(true);
+      els.btn.disabled = true;
+      els.btn.textContent = "Vytvářím objednávku…";
+
       const resp = await createOrder(payload);
 
-      if (!resp?.ok) throw new Error('Objednávku se nepodařilo vytvořit.');
+      if (!resp?.ok) throw new Error("Objednávku se nepodařilo vytvořit.");
 
-      saveLastOrder(resp, payload);
-      clearCart();
+      // ✅ newsletter subscribe hook
+      tryNewsletterSubscribe(payload.email);
+
+      // redirect
+      localStorage.removeItem("cart");
       clearPickup();
 
-      setMsg('ok', 'Objednávka vytvořena. Přesměrovávám…');
-      goThankYou(resp.order_id, resp.order_number);
+      location.href = `dekuji.html?order_number=${resp.order_number}`;
 
     } catch (ex) {
       console.error(ex);
-      setMsg('err', `Nešlo to dokončit: ${ex?.message || ex}`);
-      lockUI(false);
+      setMsg('err', ex.message);
+      els.btn.disabled = false;
+      els.btn.textContent = "Objednat";
     }
   });
 });
