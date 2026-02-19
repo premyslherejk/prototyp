@@ -165,7 +165,7 @@
           <div>
             <div class="auc-editor-title">Newsletter</div>
             <div class="muted small">
-              Segmentace zákazníků + uložené drafty. Posílání doděláme později (zatím export CSV).
+              Segmentace zákazníků + uložené drafty + odesílání přes Resend.
             </div>
           </div>
 
@@ -266,7 +266,7 @@
               </label>
             </div>
 
-            <div class="actions" style="margin-top:12px;">
+            <div class="actions" style="margin-top:12px; gap:10px; flex-wrap:wrap;">
               <button class="btn-ghost" id="nlExportBtn" type="button">Export CSV (jen subscribed)</button>
             </div>
 
@@ -297,7 +297,14 @@
               <div class="news-title">Kampaň (draft)</div>
               <div class="muted small">Uloží do DB: subject, preheader, html + segment_json.</div>
             </div>
-            <button class="btn-primary" id="nlSaveCampaignBtn" type="button">Uložit draft</button>
+
+            <div class="actions" style="gap:10px; align-items:center; flex-wrap:wrap;">
+              <button class="btn-primary" id="nlSaveCampaignBtn" type="button">Uložit draft</button>
+
+              <input id="nlTestEmail" class="input" type="email" placeholder="test@pokekusovky.cz" style="min-width:260px;" />
+              <button class="btn-ghost" id="nlSendTestBtn" type="button">Send test</button>
+              <button class="btn-primary" id="nlSendLiveBtn" type="button">Send (subscribed + filtry)</button>
+            </div>
           </div>
 
           <div class="news-campaign">
@@ -322,6 +329,13 @@
               HTML*
               <textarea id="nlHtml" rows="10" placeholder="<h1>...</h1>"></textarea>
             </label>
+
+            <!-- duplicita tlačítek dole (lepší UX při dlouhém HTML) -->
+            <div class="actions" style="margin-top:12px; gap:10px; flex-wrap:wrap;">
+              <button class="btn-primary" id="nlSaveCampaignBtn2" type="button">Uložit draft</button>
+              <button class="btn-ghost" id="nlSendTestBtn2" type="button">Send test</button>
+              <button class="btn-primary" id="nlSendLiveBtn2" type="button">Send (subscribed + filtry)</button>
+            </div>
           </div>
         </section>
 
@@ -506,6 +520,23 @@
 
   <script src="js/adminfun.js"></script>
   <script src="js/footerfun.js"></script>
+
+  <!-- extra: tlačítka duplikované dole mapujeme na ty nahoře -->
+  <script>
+    // bezpečný bridge: když existují "…Btn2", tak klikne na hlavní
+    document.addEventListener('DOMContentLoaded', () => {
+      const map = [
+        ['nlSaveCampaignBtn2', 'nlSaveCampaignBtn'],
+        ['nlSendTestBtn2', 'nlSendTestBtn'],
+        ['nlSendLiveBtn2', 'nlSendLiveBtn'],
+      ];
+      map.forEach(([a,b]) => {
+        const A = document.getElementById(a);
+        const B = document.getElementById(b);
+        if (A && B) A.addEventListener('click', () => B.click());
+      });
+    });
+  </script>
 </body>
 
 </html>
