@@ -48,6 +48,11 @@ Uvnitř newsPane doporučuju:
     textarea: id="nlHtml"
 - campaigns list:
     tbody: id="nlCampsBody" (optional)
+
+NEW (sending):
+    input:  id="nlTestEmail"
+    button: id="nlSendTestBtn"
+    button: id="nlSendLiveBtn"
 ===========================================================
 */
 
@@ -82,12 +87,12 @@ const els = {
   tabOrders: $('tabOrders'),
   tabBuy: $('tabBuy'),
   tabAuc: $('tabAuc'),
-  tabNews: $('tabNews'), // ✅ NEW (optional)
+  tabNews: $('tabNews'), // ✅
 
   ordersPane: $('ordersPane'),
   buyPane: $('buyPane'),
   aucPane: $('aucPane'),
-  newsPane: $('newsPane'), // ✅ NEW (optional)
+  newsPane: $('newsPane'), // ✅
 
   // orders filters
   searchInput: $('searchInput'),
@@ -142,7 +147,7 @@ const els = {
   aucUploadBtn: $('aucUploadBtn'),
   aucPhotoGrid: $('aucPhotoGrid'),
 
-  // ===================== NEWSLETTER (optional) =====================
+  // ===================== NEWSLETTER =====================
   newsMsg: $('newsMsg'),
   newsCountAll: $('newsCountAll'),
   newsCountSubs: $('newsCountSubs'),
@@ -170,6 +175,11 @@ const els = {
   nlSaveCampaignBtn: $('nlSaveCampaignBtn'),
 
   nlCampsBody: $('nlCampsBody'),
+
+  // sending UI
+  nlTestEmail: $('nlTestEmail'),
+  nlSendTestBtn: $('nlSendTestBtn'),
+  nlSendLiveBtn: $('nlSendLiveBtn'),
 };
 
 function showView(which) {
@@ -245,6 +255,7 @@ let AUCTIONS = [];
 let NL_METRICS = [];       // rows from admin_newsletter_customer_metrics()
 let NL_SUBSCRIBERS = [];   // newsletter_subscribers
 let NL_CAMPAIGNS = [];     // newsletter_campaigns
+let NL_SELECTED_CAMPAIGN_ID = null; // 👈 NEW: co budeme posílat
 
 // ---------- Orders ----------
 async function loadOrders() {
@@ -1120,7 +1131,6 @@ function nlOrderBucketMatch(count, bucket) {
 function nlPricePrefMatch(avgItemPrice, pref) {
   if (!pref) return true;
   const p = Number(avgItemPrice || 0);
-  // 🔧 prah můžeš kdykoliv změnit, je to jen “levný vs dražší”
   const TH = 120; // Kč
   if (pref === 'cheap') return p > 0 && p < TH;
   if (pref === 'expensive') return p >= TH;
@@ -1139,21 +1149,18 @@ function nlBuildPreviewList() {
 
   let rows = [...NL_METRICS];
 
-  // exclude unsubscribed (default ON)
   if (seg.excludeUnsub) {
     rows = rows.filter(m => {
       const s = subsMap.get(String(m.email || '').toLowerCase().trim());
-      if (!s) return true; // customer bez subscribe necháme projít
+      if (!s) return true;
       return !s.is_unsubscribed;
     });
   }
 
-  // never bought
   if (seg.neverBought) {
     rows = rows.filter(m => Number(m.orders_count || 0) === 0);
   }
 
-  // no buy X days
   if (seg.noBuyDays) {
     rows = rows.filter(m => {
       const last = m.last_order_at || m.last_any_order_at;
@@ -1163,47 +1170,38 @@ function nlBuildPreviewList() {
     });
   }
 
-  // orders bucket
   if (seg.ordersBucket) {
     rows = rows.filter(m => nlOrderBucketMatch(m.orders_count, seg.ordersBucket));
   }
 
-  // total spent min
   if (seg.totalSpentMin !== null) {
     rows = rows.filter(m => Number(m.total_spent || 0) >= seg.totalSpentMin);
   }
 
-  // AOV min
   if (seg.aovMin !== null) {
     rows = rows.filter(m => Number(m.aov || 0) >= seg.aovMin);
   }
 
-  // vip
   if (seg.vipTop10) {
     rows = rows.filter(m => !!m.is_vip_top10);
   }
 
-  // has pending
   if (seg.hasPending) {
     rows = rows.filter(m => !!m.has_pending);
   }
 
-  // exclude returned
   if (seg.excludeReturned) {
     rows = rows.filter(m => !m.has_returned);
   }
 
-  // prefers language
   if (seg.prefersLanguage) {
     rows = rows.filter(m => String(m.prefers_language || '').toUpperCase() === seg.prefersLanguage.toUpperCase());
   }
 
-  // cheap/expensive preference
   if (seg.pricePref) {
     rows = rows.filter(m => nlPricePrefMatch(m.avg_item_price, seg.pricePref));
   }
 
-  // řazení: spent desc, pak poslední order desc
   rows.sort((a,b) => {
     const A = Number(a.total_spent || 0);
     const B = Number(b.total_spent || 0);
@@ -1271,7 +1269,6 @@ function nlRenderPreview() {
 }
 
 async function nlLoadMetrics() {
-  // ✅ IMPORTANT: metrics jdou přes RPC
   const { data, error } = await sb.rpc('admin_newsletter_customer_metrics');
   if (error) throw error;
   NL_METRICS = Array.isArray(data) ? data : [];
@@ -1279,7 +1276,6 @@ async function nlLoadMetrics() {
 
 function sbErrToText(err) {
   if (!err) return 'Unknown error';
-  // supabase-js error obvykle má: message, details, hint, code
   const parts = [
     err.message,
     err.details,
@@ -1304,36 +1300,29 @@ function sortByFirstExistingDateDesc(rows, fields) {
   return arr;
 }
 
-
 async function nlLoadSubscribers() {
-  // ✅ žádný order=created_at (protože může neexistovat)
   const { data, error } = await sb
     .from('newsletter_subscribers')
-    .select('id,email,is_unsubscribed,unsubscribed_at,subscribed_at,source'); // schválně bez created_at
+    .select('id,email,is_unsubscribed,unsubscribed_at,subscribed_at,source');
 
   if (error) throw error;
 
-  // seřadíme v JS: subscribed_at / unsubscribed_at / id (fallback)
   const rows = Array.isArray(data) ? data : [];
   NL_SUBSCRIBERS = sortByFirstExistingDateDesc(rows, ['subscribed_at','unsubscribed_at'])
     .sort((a,b) => {
-      // když jsou časy stejné/nula, dej aspoň stabilní pořadí podle id desc
       const A = String(a?.id ?? '');
       const B = String(b?.id ?? '');
       return B.localeCompare(A);
     });
 }
 
-
 async function nlLoadCampaigns() {
-  // ✅ žádný created_at v selectu ani orderu (protože může neexistovat)
   const { data, error } = await sb
     .from('newsletter_campaigns')
-    .select('id,name,subject,preheader,status,scheduled_for,sent_at,segment_json'); 
+    .select('id,name,subject,preheader,status,scheduled_for,sent_at,segment_json');
 
   if (error) throw error;
 
-  // seřadíme v JS: sent_at / scheduled_for / id
   const rows = Array.isArray(data) ? data : [];
   NL_CAMPAIGNS = sortByFirstExistingDateDesc(rows, ['sent_at','scheduled_for'])
     .sort((a,b) => {
@@ -1342,7 +1331,6 @@ async function nlLoadCampaigns() {
       return B.localeCompare(A);
     });
 }
-
 
 function nlRenderCampaignsTable() {
   if (!els.nlCampsBody) return;
@@ -1353,15 +1341,17 @@ function nlRenderCampaignsTable() {
   }
 
   els.nlCampsBody.innerHTML = NL_CAMPAIGNS.map(c => {
+    const isSelected = NL_SELECTED_CAMPAIGN_ID && c.id === NL_SELECTED_CAMPAIGN_ID;
     return `
-      <tr>
-        <td><strong>${escapeHtml(c.name || '—')}</strong><br><span class="muted">${fmtDt(c.created_at)}</span></td>
+      <tr ${isSelected ? 'style="outline:2px solid rgba(255,59,59,.35); outline-offset:-2px;"' : ''}>
+        <td><strong>${escapeHtml(c.name || '—')}</strong></td>
         <td>${escapeHtml(c.subject || '')}</td>
         <td>${escapeHtml(c.status || 'draft')}</td>
         <td>${c.scheduled_for ? fmtDt(c.scheduled_for) : '—'}</td>
         <td>${c.sent_at ? fmtDt(c.sent_at) : '—'}</td>
         <td>
           <button class="btn-small" data-nl-camp="load" data-nl-id="${c.id}">Načíst</button>
+          <button class="btn-small" data-nl-camp="select" data-nl-id="${c.id}">${isSelected ? 'Vybráno' : 'Vybrat'}</button>
         </td>
       </tr>
     `;
@@ -1445,12 +1435,20 @@ async function nlSaveCampaignDraft() {
     segment_json
   };
 
-  const { error } = await sb.from('newsletter_campaigns').insert(payload);
+  // 👇 vrátíme id, a nastavíme jako vybranou kampaň
+  const { data, error } = await sb
+    .from('newsletter_campaigns')
+    .insert(payload)
+    .select('id')
+    .single();
+
   if (error) throw error;
+
+  if (data?.id) NL_SELECTED_CAMPAIGN_ID = data.id;
 
   await nlLoadCampaigns();
   nlRenderCampaignsTable();
-  setMsg(els.newsMsg, 'ok', 'Draft uložen ✅');
+  setMsg(els.newsMsg, 'ok', 'Draft uložen ✅ (vybrán pro odeslání)');
 }
 
 async function nlReloadAll() {
@@ -1465,10 +1463,99 @@ async function nlReloadAll() {
     setMsg(els.newsMsg, 'ok', 'Newsletter ready ✅');
     setTimeout(() => setMsg(els.newsMsg, '', ''), 900);
   } catch (e) {
-  console.error('NEWSLETTER LOAD ERROR:', e);
-  setMsg(els.newsMsg, 'err', sbErrToText(e));
+    console.error('NEWSLETTER LOAD ERROR:', e);
+    setMsg(els.newsMsg, 'err', sbErrToText(e));
+  }
 }
 
+/* ---------- NEWSLETTER: SEND (Resend via Edge Function) ---------- */
+
+function nlGetCampaignIdForSend() {
+  if (NL_SELECTED_CAMPAIGN_ID) return NL_SELECTED_CAMPAIGN_ID;
+  if (NL_CAMPAIGNS?.length) return NL_CAMPAIGNS[0]?.id || null;
+  return null;
+}
+
+async function nlCallSendFunction(payload) {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) throw new Error('Nejsi přihlášenej.');
+
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/newsletter-send`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const out = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(out?.error || `Send fail (HTTP ${res.status})`);
+  return out;
+}
+
+async function nlSendTest() {
+  if (!nlHasUI()) return;
+
+  const campaign_id = nlGetCampaignIdForSend();
+  if (!campaign_id) {
+    setMsg(els.newsMsg, 'err', 'Nemáš žádnou kampaň. Nejdřív ulož draft nebo načti kampaň.');
+    return;
+  }
+
+  let testEmail = String(els.nlTestEmail?.value || '').trim().toLowerCase();
+  if (!testEmail) {
+    testEmail = prompt('Zadej test email:', '')?.trim().toLowerCase() || '';
+  }
+  if (!testEmail) {
+    setMsg(els.newsMsg, 'err', 'Chybí test email.');
+    return;
+  }
+
+  setMsg(els.newsMsg, '', 'Posílám test…');
+
+  const out = await nlCallSendFunction({
+    campaign_id,
+    mode: 'test',
+    test_email: testEmail,
+  });
+
+  setMsg(els.newsMsg, 'ok', `Test odeslán ✅ (${out.sent}/${out.recipients})`);
+}
+
+async function nlSendLiveFiltered() {
+  if (!nlHasUI()) return;
+
+  const campaign_id = nlGetCampaignIdForSend();
+  if (!campaign_id) {
+    setMsg(els.newsMsg, 'err', 'Nemáš žádnou kampaň. Nejdřív ulož draft nebo načti kampaň.');
+    return;
+  }
+
+  const emails = nlEmailsFromPreview({ onlySubscribed: true });
+
+  if (!emails.length) {
+    setMsg(els.newsMsg, 'err', 'Podle filtrů nemáš žádný subscribed příjemce.');
+    return;
+  }
+
+  const ok = confirm(`Poslat kampaň na ${emails.length} subscribed lidí podle filtrů?`);
+  if (!ok) return;
+
+  setMsg(els.newsMsg, '', `Odesílám… (${emails.length} příjemců)`);
+
+  // 👇 posíláme konkrétní emaily (filtry)
+  const out = await nlCallSendFunction({
+    campaign_id,
+    mode: 'list',
+    emails,
+  });
+
+  setMsg(
+    els.newsMsg,
+    'ok',
+    `Odesláno ✅ sent: ${out.sent}/${out.recipients} • fail: ${out.failed}`
+  );
 }
 
 /* ===================== AUTH FLOW ===================== */
@@ -1517,15 +1604,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   els.tabBuy?.addEventListener('click', () => setTab('buy'));
   els.tabAuc?.addEventListener('click', () => setTab('auc'));
 
-  // ✅ FIX: newsletter tab často existuje, ale data ještě nejsou / UI prázdné.
-  // Když klikneš na Newsletter:
-  // - přepne tab
-  // - pokud data nejsou načtená, načte je (a pak renderne)
   els.tabNews?.addEventListener('click', async () => {
     setTab('news');
     if (!nlHasUI()) return;
 
-    // když nejsou data, načti je; jinak jen render
     if (!NL_METRICS.length && !NL_SUBSCRIBERS.length && !NL_CAMPAIGNS.length) {
       await nlReloadAll();
     } else {
@@ -1754,21 +1836,74 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     });
 
-    els.nlCampsBody?.addEventListener('click', async (e) => {
-      const btn = e.target.closest('[data-nl-camp="load"]');
-      if (!btn) return;
-      const id = btn.getAttribute('data-nl-id');
-      if (!id) return;
-
+    // NEW: send buttons
+    els.nlSendTestBtn?.addEventListener('click', async () => {
       try {
-        const c = await nlLoadCampaignDetail(id);
-        nlFillCampaignEditor(c);
-        if (els.nlHtml) els.nlHtml.value = c.html || '';
-        setMsg(els.newsMsg, 'ok', 'Kampaň načtena ✅');
+        if (els.nlSendTestBtn) {
+          els.nlSendTestBtn.disabled = true;
+          els.nlSendTestBtn.textContent = 'Posílám…';
+        }
+        await nlSendTest();
+      } catch (e) {
+        console.error(e);
+        setMsg(els.newsMsg, 'err', e?.message || String(e));
+      } finally {
+        if (els.nlSendTestBtn) {
+          els.nlSendTestBtn.disabled = false;
+          els.nlSendTestBtn.textContent = 'Send test';
+        }
+      }
+    });
+
+    els.nlSendLiveBtn?.addEventListener('click', async () => {
+      try {
+        if (els.nlSendLiveBtn) {
+          els.nlSendLiveBtn.disabled = true;
+          els.nlSendLiveBtn.textContent = 'Odesílám…';
+        }
+        await nlSendLiveFiltered();
+      } catch (e) {
+        console.error(e);
+        setMsg(els.newsMsg, 'err', e?.message || String(e));
+      } finally {
+        if (els.nlSendLiveBtn) {
+          els.nlSendLiveBtn.disabled = false;
+          els.nlSendLiveBtn.textContent = 'Send (subscribed + filtry)';
+        }
+      }
+    });
+
+    // campaigns table events (load/select)
+    els.nlCampsBody?.addEventListener('click', async (e) => {
+      const loadBtn = e.target.closest('[data-nl-camp="load"]');
+      const selectBtn = e.target.closest('[data-nl-camp="select"]');
+
+      if (selectBtn) {
+        const id = selectBtn.getAttribute('data-nl-id');
+        if (!id) return;
+        NL_SELECTED_CAMPAIGN_ID = id;
+        nlRenderCampaignsTable();
+        setMsg(els.newsMsg, 'ok', 'Kampaň vybrána pro odeslání ✅');
         setTimeout(() => setMsg(els.newsMsg, '', ''), 900);
-      } catch (err) {
-        console.error(err);
-        setMsg(els.newsMsg, 'err', err?.message || String(err));
+        return;
+      }
+
+      if (loadBtn) {
+        const id = loadBtn.getAttribute('data-nl-id');
+        if (!id) return;
+
+        try {
+          const c = await nlLoadCampaignDetail(id);
+          nlFillCampaignEditor(c);
+          if (els.nlHtml) els.nlHtml.value = c.html || '';
+          NL_SELECTED_CAMPAIGN_ID = c.id;
+          nlRenderCampaignsTable();
+          setMsg(els.newsMsg, 'ok', 'Kampaň načtena ✅ (a vybrána)');
+          setTimeout(() => setMsg(els.newsMsg, '', ''), 900);
+        } catch (err) {
+          console.error(err);
+          setMsg(els.newsMsg, 'err', err?.message || String(err));
+        }
       }
     });
   }
@@ -1783,4 +1918,3 @@ document.addEventListener("DOMContentLoaded", async () => {
   clearAucEditor();
   await refreshAuthUI();
 });
-
