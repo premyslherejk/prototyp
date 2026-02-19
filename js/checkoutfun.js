@@ -2,7 +2,8 @@
 const { createClient } = supabase;
 
 const SUPABASE_URL = 'https://hwjbfrhbgeczukcjkmca.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh3amJmcmhiZ2VjenVrY2prbWNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk0NDU5MjQsImV4cCI6MjA4NTAyMTkyNH0.BlgIov7kFq2EUW17hLs6o1YujL1i9elD7wILJP6h-lQ';
+const SUPABASE_ANON_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh3amJmcmhiZ2VjenVrY2prbWNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk0NDU5MjQsImV4cCI6MjA4NTAyMTkyNH0.BlgIov7kFq2EUW17hLs6o1YujL1i9elD7wILJP6h-lQ';
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -12,10 +13,7 @@ const PACKETA_API_KEY = '4b32c40ade3173fb';
 const PACKETA_OPTIONS = {
   language: 'cs',
   view: 'modal',
-  vendors: [
-    { country: 'cz' },
-    { country: 'cz', group: 'zbox' },
-  ],
+  vendors: [{ country: 'cz' }, { country: 'cz', group: 'zbox' }],
 };
 
 const PICKUP_SS_KEY = 'checkout_pickup_packeta';
@@ -42,6 +40,14 @@ function normalizeCartItems(cart) {
     out.push({ card_id, qty });
   }
   return out;
+}
+
+// ===================== TOKEN (pro transakční email) =====================
+function genEmailToken() {
+  // 32 hex chars
+  const arr = new Uint8Array(16);
+  crypto.getRandomValues(arr);
+  return Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 // ===================== UI =====================
@@ -110,18 +116,22 @@ function formatKc(n) {
 
 function escapeHtml(s) {
   return String(s ?? '')
-    .replaceAll('&','&amp;')
-    .replaceAll('<','&lt;')
-    .replaceAll('>','&gt;')
-    .replaceAll('"','&quot;')
-    .replaceAll("'","&#039;");
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
 }
 
 // ===================== PICKUP (sessionStorage) =====================
 function readPickup() {
   const raw = sessionStorage.getItem(PICKUP_SS_KEY);
   if (!raw) return null;
-  try { return JSON.parse(raw); } catch { return null; }
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
 }
 
 function savePickup(point) {
@@ -159,7 +169,7 @@ function openPacketaWidget() {
   console.log('Packeta click:', {
     hasPacketa: !!window.Packeta,
     hasPick: !!window.Packeta?.Widget?.pick,
-    apiKeyLen: (PACKETA_API_KEY || '').length
+    apiKeyLen: (PACKETA_API_KEY || '').length,
   });
 
   if (!PACKETA_API_KEY) {
@@ -184,7 +194,14 @@ function openPacketaWidget() {
 
 // ===================== SUMMARY SYNC (desktop -> inline mobile) =====================
 function syncInlineSummaryFromDesktop() {
-  if (!els.cartMiniInline || !els.sumSubtotalInline || !els.sumShipInline || !els.sumTotalInline || !els.reserveHintInline) return;
+  if (
+    !els.cartMiniInline ||
+    !els.sumSubtotalInline ||
+    !els.sumShipInline ||
+    !els.sumTotalInline ||
+    !els.reserveHintInline
+  )
+    return;
 
   els.cartMiniInline.innerHTML = els.cartMini?.innerHTML ?? '';
   els.sumSubtotalInline.textContent = els.sumSubtotal?.textContent ?? '0 Kč';
@@ -224,11 +241,13 @@ function renderMiniSummary() {
     subtotal += price * qty;
   }
 
-  const itemsHtml = cart.slice(0, 12).map(it => {
-    const name = it?.name || it?.card?.name || 'Karta';
-    const img = it?.image || it?.image_url || it?.imageUrl || it?.card?.image_url || '';
-    const price = Number(it?.price ?? it?.card?.price ?? 0);
-    return `
+  const itemsHtml = cart
+    .slice(0, 12)
+    .map((it) => {
+      const name = it?.name || it?.card?.name || 'Karta';
+      const img = it?.image || it?.image_url || it?.imageUrl || it?.card?.image_url || '';
+      const price = Number(it?.price ?? it?.card?.price ?? 0);
+      return `
       <div class="mini-item">
         <img src="${img}" alt="">
         <div>
@@ -238,7 +257,8 @@ function renderMiniSummary() {
         <div style="opacity:.75;font-weight:900;">×${Number(it?.qty ?? 1) || 1}</div>
       </div>
     `;
-  }).join('');
+    })
+    .join('');
 
   if (els.cartMini) {
     els.cartMini.innerHTML = itemsHtml + (cart.length > 12 ? `<p class="muted">+ další položky…</p>` : '');
@@ -271,11 +291,36 @@ async function tryNewsletterSubscribe(email) {
 
   // nechceme aby newsletter rozbil checkout
   try {
-    // RPC (doporučeno, umí upsert + resubscribe)
     const { error } = await sb.rpc('subscribe_newsletter', { p_email: e, p_source: 'checkout' });
     if (error) throw error;
   } catch (err) {
     console.warn('Newsletter subscribe failed (ignored):', err?.message || err);
+  }
+}
+
+// ===================== ORDER EMAIL (Edge Function) =====================
+async function trySendOrderCreatedEmail({ order_id, email_token }) {
+  // nikdy nesmí rozbít checkout
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/order-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        event: 'created',
+        order_id,
+        email_token
+      }),
+    });
+
+    const out = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      console.warn('order-email (created) failed:', out);
+      return { ok: false, status: res.status, out };
+    }
+    return out;
+  } catch (e) {
+    console.warn('order-email (created) crashed:', e);
+    return { ok: false, error: e?.message || String(e) };
   }
 }
 
@@ -317,17 +362,9 @@ function buildPayload() {
   const payment_method = getSelected('payment') || 'bank';
   const pickup = readPickup();
 
-  const pickupId =
-    pickup?.id ||
-    pickup?.carrierPickupPointId ||
-    pickup?.pickupPointId ||
-    null;
+  const pickupId = pickup?.id || pickup?.carrierPickupPointId || pickup?.pickupPointId || null;
 
-  const pickupName =
-    pickup?.name ||
-    pickup?.place ||
-    pickup?.formatedValue ||
-    null;
+  const pickupName = pickup?.name || pickup?.place || pickup?.formatedValue || null;
 
   return {
     email: String(els.email.value || '').trim(),
@@ -349,7 +386,10 @@ function buildPayload() {
     terms_accepted: true,
     gdpr_accepted: true,
 
-    items: cart
+    // ✅ NEW: token uložíme do orders (přes RPC)
+    email_token: genEmailToken(),
+
+    items: cart,
   };
 }
 
@@ -373,7 +413,7 @@ function saveLastOrder(resp, payload) {
     delivery_method: payload?.delivery_method,
     delivery_point_id: payload?.delivery_point_id,
     delivery_point_name: payload?.delivery_point_name,
-    email: payload?.email
+    email: payload?.email,
   };
   sessionStorage.setItem('last_order', JSON.stringify(info));
 }
@@ -427,13 +467,20 @@ document.addEventListener('DOMContentLoaded', () => {
       const resp = await createOrder(payload);
       if (!resp?.ok) throw new Error('Objednávku se nepodařilo vytvořit.');
 
+      // ✅ transakční email (created) – neblokuje dokončení objednávky
+      // Pošli až když máme order_id
+      // Důležité: payload.email_token musí být uložený v DB u té objednávky
+      trySendOrderCreatedEmail({
+        order_id: resp.order_id,
+        email_token: payload.email_token
+      });
+
       saveLastOrder(resp, payload);
       clearCart();
       clearPickup();
 
       setMsg('ok', 'Objednávka vytvořena. Přesměrovávám…');
       goThankYou(resp.order_id, resp.order_number);
-
     } catch (ex) {
       console.error(ex);
       setMsg('err', `Nešlo to dokončit: ${ex?.message || ex}`);
