@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Odhlášení z newsletteru</title>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <style>
+    body{font-family:Inter,system-ui,sans-serif;background:#0f0f14;color:#fff;display:grid;place-items:center;min-height:100vh;margin:0;padding:24px}
+    .card{max-width:520px;width:100%;background:#15151d;border:1px solid #2a2a33;border-radius:18px;padding:18px}
+    h1{margin:0 0 10px;font-size:20px}
+    p{opacity:.85;line-height:1.5}
+    .ok{color:#7dffb2}
+    .err{color:#ff6b6b}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Odhlášení z newsletteru</h1>
+    <p id="msg">Zpracovávám…</p>
+  </div>
+
+<script>
+  const SUPABASE_URL = "https://hwjbfrhbgeczukcjkmca.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh3amJmcmhiZ2VjenVrY2prbWNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk0NDU5MjQsImV4cCI6MjA4NTAyMTkyNH0.BlgIov7kFq2EUW17hLs6o1YujL1i9elD7wILJP6h-lQ"; // stejnej jako ve webu
+
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const msg = document.getElementById("msg");
+  const t = new URLSearchParams(location.search).get("t") || "";
+
+  (async () => {
+    if (!t) {
+      msg.textContent = "Chybí token v URL.";
+      msg.className = "err";
+      return;
+    }
+
+    const { error } = await sb.rpc("newsletter_unsubscribe", { p_token: t });
+    if (error) {
+      msg.textContent = "Nepovedlo se odhlásit: " + (error.message || error);
+      msg.className = "err";
+      return;
+    }
+
+    msg.textContent = "Hotovo ✅ Odběr byl odhlášen.";
+    msg.className = "ok";
+  })();
+</script>
+</body>
+</html>
