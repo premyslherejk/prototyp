@@ -1477,22 +1477,30 @@ function nlGetCampaignIdForSend() {
 }
 
 async function nlCallSendFunction(payload) {
-  const { data: { session } } = await sb.auth.getSession();
-  if (!session) throw new Error('Nejsi přihlášenej.');
+  // session check (když session není, invoke by stejně failnul)
+  const { data: { session }, error: sessErr } = await sb.auth.getSession();
+  if (sessErr) throw sessErr;
+  if (!session?.access_token) throw new Error('Nejsi přihlášenej.');
 
-  const res = await fetch(`${SUPABASE_URL}/functions/v1/newsletter-send`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${session.access_token}`,
-    },
-    body: JSON.stringify(payload),
+  // ✅ správně: Supabase Edge Function call přes invoke()
+  const { data, error } = await sb.functions.invoke('newsletter-send', {
+    body: payload,
   });
 
-  const out = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(out?.error || `Send fail (HTTP ${res.status})`);
-  return out;
+  if (error) {
+    // supabase error někdy nemá hezkej message, tak vytáhnem maximum
+    const msg =
+      error.message ||
+      error.details ||
+      (typeof error === 'string' ? error : null) ||
+      'Send fail (Edge Function error)';
+    throw new Error(msg);
+  }
+
+  // data je už JSON z edge function
+  return data;
 }
+
 
 async function nlSendTest() {
   if (!nlHasUI()) return;
@@ -1918,3 +1926,4 @@ document.addEventListener("DOMContentLoaded", async () => {
   clearAucEditor();
   await refreshAuthUI();
 });
+
