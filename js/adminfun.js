@@ -1477,30 +1477,35 @@ function nlGetCampaignIdForSend() {
 }
 
 async function nlCallSendFunction(payload) {
-  // session check (když session není, invoke by stejně failnul)
   const { data: { session }, error: sessErr } = await sb.auth.getSession();
   if (sessErr) throw sessErr;
   if (!session?.access_token) throw new Error('Nejsi přihlášenej.');
 
-  // ✅ správně: Supabase Edge Function call přes invoke()
-  const { data, error } = await sb.functions.invoke('newsletter-send', {
-    body: payload,
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/newsletter-send`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+
+      // ✅ tohle je zásadní (Supabase gateway to často vyžaduje)
+      'apikey': SUPABASE_ANON_KEY,
+
+      // ✅ JWT usera (tvůj edge kód ho kontroluje)
+      'Authorization': `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify(payload),
   });
 
-  if (error) {
-    // supabase error někdy nemá hezkej message, tak vytáhnem maximum
-    const msg =
-      error.message ||
-      error.details ||
-      (typeof error === 'string' ? error : null) ||
-      'Send fail (Edge Function error)';
+  const text = await res.text(); // nejdřív text, ať vytáhneme error i když to není valid JSON
+  let out = {};
+  try { out = text ? JSON.parse(text) : {}; } catch (_) {}
+
+  if (!res.ok) {
+    const msg = out?.error || out?.message || text || `Send fail (HTTP ${res.status})`;
     throw new Error(msg);
   }
 
-  // data je už JSON z edge function
-  return data;
+  return out;
 }
-
 
 async function nlSendTest() {
   if (!nlHasUI()) return;
@@ -1926,4 +1931,5 @@ document.addEventListener("DOMContentLoaded", async () => {
   clearAucEditor();
   await refreshAuthUI();
 });
+
 
