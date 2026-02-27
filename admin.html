@@ -98,6 +98,7 @@
           </select>
 
           <button class="btn-ghost" id="exportCsvBtn" type="button">Export CSV (Zásilkovna)</button>
+          <button class="btn-ghost" id="exportSelfCsvBtn" type="button">Export CSV (pro mě)</button>
         </div>
 
         <div class="table-wrap">
@@ -383,28 +384,7 @@
           </div>
         </div>
 
-        <div class="table-wrap">
-          <table class="table" id="aucTable">
-            <thead>
-              <tr>
-                <th>Název</th>
-                <th>Stav</th>
-                <th>Start</th>
-                <th>Konec</th>
-                <th>Publikováno</th>
-                <th>Fotky</th>
-                <th>Akce</th>
-              </tr>
-            </thead>
-            <tbody id="aucBody">
-              <tr><td colspan="7" class="muted">Načítám…</td></tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div class="sep-line"></div>
-
-        <!-- Editor -->
+        <!-- ✅ Editor moved ABOVE the list -->
         <section class="auc-editor" id="aucEditor">
           <div class="auc-editor-top">
             <div>
@@ -482,6 +462,29 @@
           </div>
 
         </section>
+
+        <div class="sep-line"></div>
+
+        <!-- ✅ List moved BELOW the editor -->
+        <div class="table-wrap">
+          <table class="table" id="aucTable">
+            <thead>
+              <tr>
+                <th>Název</th>
+                <th>Stav</th>
+                <th>Start</th>
+                <th>Konec</th>
+                <th>Publikováno</th>
+                <th>Fotky</th>
+                <th>Akce</th>
+              </tr>
+            </thead>
+            <tbody id="aucBody">
+              <tr><td colspan="7" class="muted">Načítám…</td></tr>
+            </tbody>
+          </table>
+        </div>
+
       </div>
 
       <p class="msg" id="dashMsg" aria-live="polite"></p>
