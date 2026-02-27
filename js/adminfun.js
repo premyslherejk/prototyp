@@ -99,6 +99,7 @@ const els = {
   statusFilter: $('statusFilter'),
   paymentFilter: $('paymentFilter'),
   exportCsvBtn: $('exportCsvBtn'),
+  exportSelfCsvBtn: $('exportSelfCsvBtn'),
 
   // orders table
   ordersBody: $('ordersBody'),
@@ -202,6 +203,16 @@ function fmtDt(ts) {
   const d = new Date(ts);
   if (Number.isNaN(d.getTime())) return '—';
   return d.toLocaleString('cs-CZ', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+}
+
+function fmtDateISO(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return '';
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 function escapeHtml(s) {
@@ -464,6 +475,104 @@ function exportCsv() {
   const a = document.createElement("a");
   a.href = url;
   a.download = "zasilkovna_export.csv";
+  a.click();
+}
+
+// ✅ NEW: Export CSV "pro mě"
+function pickSelectedOrderIds() {
+  return Array.from(document.querySelectorAll("[data-pick]:checked"))
+    .map(x => x.getAttribute("data-pick"))
+    .filter(Boolean);
+}
+
+function safeItemIdFromRow(it) {
+  // zkusíme nejpravděpodobnější
+  return it?.item_id ?? it?.card_id ?? it?.product_id ?? it?.id ?? null;
+}
+
+async function exportSelfCsv() {
+  const picked = pickSelectedOrderIds();
+  if (!picked.length) {
+    alert("Nejdřív označ objednávky checkboxem.");
+    return;
+  }
+
+  const selectedOrders = ORDERS.filter(o => picked.includes(o.id));
+  if (!selectedOrders.length) {
+    alert("Vybraný objednávky se nenašly v paměti. Dej Reload.");
+    return;
+  }
+
+  // natáhneme položky
+  // Pozn: schválně select('*') kvůli neznámým názvům sloupců item_id/card_id/product_id
+  const { data: items, error } = await sb
+    .from('order_items')
+    .select('*')
+    .in('order_id', picked);
+
+  if (error) {
+    console.error(error);
+    alert("Chyba při načítání order_items: " + (error.message || error));
+    return;
+  }
+
+  const byOrder = new Map();
+  for (const it of (items || [])) {
+    const oid = it?.order_id;
+    if (!oid) continue;
+    if (!byOrder.has(oid)) byOrder.set(oid, []);
+    byOrder.get(oid).push(it);
+  }
+
+  const headers = [
+    "date",
+    "order_number",
+    "item_ids",
+    "buyer_name",
+    "items_total",
+    "shipping_price"
+  ];
+
+  let csv = "\uFEFF" + headers.join(";") + "\n";
+
+  for (const o of selectedOrders) {
+    const rows = byOrder.get(o.id) || [];
+
+    const ids = rows
+      .map(safeItemIdFromRow)
+      .filter(Boolean)
+      .map(x => String(x));
+
+    const uniqIds = Array.from(new Set(ids));
+    const itemIdsJoined = uniqIds.join("|");
+
+    const itemsTotal = rows.reduce((sum, it) => {
+      const qty = Number(it?.qty || 0);
+      const price = Number(it?.price_snapshot || 0);
+      return sum + (qty * price);
+    }, 0);
+
+    const date = fmtDateISO(o.created_at);
+    const buyer = `${String(o.first_name || '').trim()} ${String(o.last_name || '').trim()}`.trim();
+
+    const row = [
+      date,
+      o.order_number || "",
+      itemIdsJoined,
+      buyer,
+      itemsTotal,
+      Number(o.shipping_price || 0)
+    ];
+
+    csv += row.map(v => `"${String(v ?? "").replaceAll('"','""')}"`).join(";") + "\n";
+  }
+
+  const blob = new Blob([csv], { type:"text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `orders_export_${new Date().toISOString().slice(0,10)}.csv`;
   a.click();
 }
 
@@ -986,6 +1095,9 @@ async function editAuction(id) {
   const a = AUCTIONS.find(x => x.id === id);
   if (!a) return;
   fillAucEditor(a);
+
+  // ✅ UX: po kliknutí "Upravit" to hezky skočí do editoru (teď je nad listem)
+  els.aucEditor?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
 }
 
 async function uploadAuctionPhotos() {
@@ -1495,7 +1607,7 @@ async function nlCallSendFunction(payload) {
     body: JSON.stringify(payload),
   });
 
-  const text = await res.text(); // nejdřív text, ať vytáhneme error i když to není valid JSON
+  const text = await res.text();
   let out = {};
   try { out = text ? JSON.parse(text) : {}; } catch (_) {}
 
@@ -1557,7 +1669,6 @@ async function nlSendLiveFiltered() {
 
   setMsg(els.newsMsg, '', `Odesílám… (${emails.length} příjemců)`);
 
-  // 👇 posíláme konkrétní emaily (filtry)
   const out = await nlCallSendFunction({
     campaign_id,
     mode: 'list',
@@ -1702,6 +1813,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // CSV
   els.exportCsvBtn?.addEventListener('click', exportCsv);
+  els.exportSelfCsvBtn?.addEventListener('click', exportSelfCsv);
 
   // Orders action buttons
   els.ordersBody?.addEventListener("click", async (e) => {
@@ -1760,6 +1872,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     clearAucEditor();
     setTab('auc');
     setMsg(els.aucMsg, '', '');
+    els.aucEditor?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
   });
 
   els.aucClearBtn?.addEventListener('click', () => {
@@ -1931,5 +2044,3 @@ document.addEventListener("DOMContentLoaded", async () => {
   clearAucEditor();
   await refreshAuthUI();
 });
-
-
